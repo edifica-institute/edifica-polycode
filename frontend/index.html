@@ -1,154 +1,213 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Java Online Compiler</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta charset="UTF-8" />
+<title>Edifica Polycode</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
 
-  <!-- xterm + monaco -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
-  <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
+<!-- xterm + monaco + sql.js + html2canvas -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
+<script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 
-  <style>
-    :root {
-      --bg:#0f172a; --card:#111827; --text:#e5e7eb; --muted:#9ca3af; --accent:#22c55e; --danger:#ef4444;
-      /* ⬇ change this to any width you like (e.g., 720px or 50vw) */
-      --outw: 640px;
-    }
-    * { box-sizing:border-box }
-    body { margin:0; background:var(--bg); color:var(--text); font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial }
-    header { padding:14px 18px; border-bottom:1px solid #1f2937; display:flex; gap:12px; align-items:center }
-    header h1 { margin:0; font-size:18px; font-weight:600 }
-    .badge { font-size:12px; padding:2px 8px; border-radius:999px; border:1px solid #334155; color:var(--muted) }
+<style>
+  :root{
+    --bg:#0f172a; --card:#111827; --text:#e5e7eb; --muted:#9ca3af; --accent:#22c55e; --danger:#ef4444;
+    --outw: 720px;        /* Output panel width (drag to resize) */
+    --handle: 6px;        /* Splitter thickness */
+  }
+  *{ box-sizing:border-box }
+  body{ margin:0; background:var(--bg); color:var(--text); font-family:ui-sans-serif,system-ui,"Segoe UI",Roboto,Arial }
 
-    .wrap { display:grid; grid-template-columns: 1fr var(--outw); gap:12px; padding:12px }
-    .panel { background:var(--card); border:1px solid #1f2937; border-radius:10px; overflow:hidden }
-    .toolbar { display:flex; gap:8px; align-items:center; padding:10px; border-bottom:1px solid #1f2937 }
-    .toolbar .spacer { flex:1 }
-    button { background:#1f2937; color:var(--text); border:1px solid #374151; padding:8px 12px; border-radius:8px; cursor:pointer }
-    button:hover { border-color:#4b5563 }
-    button.primary { background:#10b98122; border-color:#10b98166 }
-    button.danger { background:#ef444422; border-color:#ef444455 }
-    select { background:#0b1220; color:#e5e7eb; border:1px solid #334155; padding:6px 10px; border-radius:8px }
+  header{ padding:10px 14px; border-bottom:1px solid #1f2937; display:flex; gap:12px; align-items:center }
+  #logo{ width:34px; height:34px; border-radius:999px; border:1px solid #334155; object-fit:cover }
+  h1{ margin:0; font-size:18px; font-weight:600 }
+  .badge{ font-size:12px; padding:2px 8px; border-radius:999px; border:1px solid #334155; color:var(--muted) }
 
-    #editor { height:72vh }
-    #term, #preview { height: calc(72vh - 42px); }
-    #term { padding:8px }
-    #preview { width:100%; border:0; background:#0b1220 }
+  /* 3-column grid: editor | handle | output */
+  .wrap{
+    display:grid;
+    grid-template-columns: 1fr var(--handle) var(--outw);
+    gap:12px; padding:12px;
+  }
+  #splitter{
+    grid-column:2; cursor:col-resize; background:#243244; border-radius:8px; opacity:.7;
+  }
+  .panel{ background:var(--card); border:1px solid #1f2937; border-radius:10px; overflow:hidden }
+  .toolbar{ display:flex; gap:8px; align-items:center; padding:10px; border-bottom:1px solid #1f2937 }
+  .toolbar .spacer{ flex:1 }
+  button{ background:#1f2937; color:var(--text); border:1px solid #374151; padding:8px 12px; border-radius:10px; cursor:pointer; transition:transform .06s ease, box-shadow .2s ease }
+  button:hover{ border-color:#4b5563; transform:translateY(-1px); box-shadow:0 6px 16px rgba(0,0,0,.25) }
+  button.primary{ background:#10b98122; border-color:#10b98166 }
+  button.danger{ background:#ef444422; border-color:#ef444455 }
+  button.send{
+    background:linear-gradient(135deg,#06b6d4 0%, #10b981 50%, #22c55e 100%);
+    border:none; color:white; box-shadow:0 6px 20px rgba(16,185,129,.35);
+  }
+  select{ background:#0b1220; color:#e5e7eb; border:1px solid #334155; padding:8px 12px; border-radius:10px; min-width: 240px; } /* longer dropdown */
 
-    .status { padding:8px 10px; font-size:13px; border-bottom:1px solid #1f2937 }
-    .status.ok { color:var(--accent) }
-    .status.err { color:var(--danger) }
-    .note { padding:8px 10px; border-top:1px solid #1f2937; color:#cbd5e1; font-size:12px }
+  #singleEditor{ display:block }
+  #editor{ height:72vh }
 
-    @media (max-width:980px){ .wrap{ grid-template-columns: 1fr } #editor{ height:50vh } #term, #preview{ height:40vh } }
-  </style>
+  /* WEB: HTML+CSS+JS editors */
+  #webEditors{ display:none; grid-template-columns: 1fr 1fr 1fr; gap:8px; padding:10px }
+  #htmlEd,#cssEd,#jsEd{ height:68vh; border:1px solid #1f2937; border-radius:8px; overflow:hidden }
+
+  /* Output area */
+  #term, #preview, #sqlout{ height: calc(72vh - 42px); }
+  #term{ padding:8px }
+  #preview{ width:100%; border:0; background:#0b1220 }
+  #sqlout{ padding:8px; overflow:auto }
+  #sqlout table{ border-collapse:collapse; width:100% }
+  #sqlout th,#sqlout td{ border:1px solid #334155; padding:6px 8px; text-align:left; font-size:13px }
+  #sqlout th{ background:#0b1220 }
+
+  /* Normal arrow cursor in output panel */
+  #term, #term *, #preview, #sqlout{ cursor: default !important; }
+
+  .status{ padding:8px 10px; font-size:13px; border-bottom:1px solid #1f2937; position:relative }
+  .status.ok{ color:var(--accent) }
+  .status.err{ color:var(--danger) }
+  .note{ padding:8px 10px; border-top:1px solid #1f2937; color:#cbd5e1; font-size:12px }
+
+  /* compile spinner */
+  #spinner{ position:absolute; right:10px; top:8px; display:none }
+  .dot{ width:6px; height:6px; border-radius:999px; background:#22c55e; display:inline-block; margin-left:6px; animation:b .9s infinite ease-in-out }
+  .dot:nth-child(2){ animation-delay:.15s } .dot:nth-child(3){ animation-delay:.3s }
+  @keyframes b{ 0%,80%,100%{ transform:scale(0.6); opacity:.4 } 40%{ transform:scale(1); opacity:1 } }
+
+  @media (max-width:1100px){ .wrap{ grid-template-columns: 1fr var(--handle) min(90vw, var(--outw)) } }
+  @media (max-width:980px){ .wrap{ grid-template-columns: 1fr; } #splitter{ display:none } #editor{ height:50vh } #term,#preview,#sqlout{ height:40vh } #webEditors{ grid-template-columns:1fr; } #htmlEd,#cssEd,#jsEd{ height:42vh } }
+</style>
 </head>
 <body>
   <header>
-    <h1>Java Online Compiler</h1>
+    <img id="logo" src="Logo.png" alt="Edifica logo" />
+    <h1>Edifica Polycode</h1>
     <span class="badge">Interactive stdin • File I/O (sandbox)</span>
   </header>
 
-  <div class="wrap">
-    <!-- Left: Editor -->
-    <section class="panel">
+  <div id="captureArea" class="wrap">
+    <!-- left -->
+    <section class="panel" style="grid-column:1">
       <div class="toolbar">
         <button id="runBtn" class="primary">▶ Run</button>
         <button id="stopBtn" class="danger">⏹ Stop</button>
+        <button id="sendBtn" class="send">✉ Send</button>
         <span class="spacer"></span>
         <label for="langSel" style="font-size:12px;color:#9ca3af">Language:</label>
         <select id="langSel">
           <option value="java" selected>Java</option>
-          <option value="html">HTML</option>
+          <option value="web">HTML + CSS + JS</option>
+          <option value="sql">SQL (SQLite)</option>
+          <option value="html">HTML (single)</option>
         </select>
       </div>
-      <div id="editor"></div>
-      <div class="note">Tip: Ctrl/Cmd + Enter to Run</div>
+
+      <!-- single editor (Java/HTML/SQL) -->
+      <div id="singleEditor"><div id="editor"></div></div>
+
+      <!-- three editors (WEB) -->
+      <div id="webEditors" class="panelless webgrid">
+        <div id="htmlEd"></div>
+        <div id="cssEd"></div>
+        <div id="jsEd"></div>
+      </div>
+
+      <div class="note" id="editNote">Tip: Ctrl/Cmd + Enter to Run</div>
     </section>
 
-    <!-- Right: Output -->
-    <section class="panel">
-      <div id="status" class="status">Ready.</div>
+    <!-- handle -->
+    <div id="splitter"></div>
+
+    <!-- right -->
+    <section class="panel" style="grid-column:3">
+      <div id="status" class="status">Ready.<span id="spinner"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span></div>
       <div id="term"></div>
-      <!-- HTML preview (shown only in HTML mode) -->
-      <iframe id="preview" style="display:none"
-              sandbox="allow-scripts allow-forms allow-modals allow-popups"
-              referrerpolicy="no-referrer"></iframe>
+      <iframe id="preview" style="display:none" sandbox="allow-scripts allow-forms allow-modals allow-popups" referrerpolicy="no-referrer"></iframe>
+      <div id="sqlout" style="display:none"></div>
       <div class="note" id="hint">Type into the console when your program asks for input (e.g., Scanner).</div>
     </section>
   </div>
 
 <script>
-  // Same-origin (Cloudflare Pages proxy handles /api + /term)
+  // Same-origin: Cloudflare Pages proxy routes /api and /term to backend
   const API_BASE = "";
-  let ws = null, term = null, editor, model, lang = "java";
+
+  // state
+  let ws=null, term=null, lang="java", SQL=null;
+  let editor, model, htmlEd, cssEd, jsEd, sqlModel;
 
   // Samples
   const samples = {
-    java:
-`// Simple Java program
-import java.io.*;
-import java.util.*;
-
+    java: `// Simple Java program
+import java.io.*; import java.util.*;
 public class Main {
   public static void main(String[] args) throws Exception {
     Scanner sc = new Scanner(System.in);
     System.out.print("Enter a number: ");
     int n = sc.nextInt();
-
     try (PrintWriter pw = new PrintWriter(new FileWriter("hello.txt"))) {
       pw.println("Square = " + (n*n));
     }
-
     System.out.println("Wrote hello.txt");
     System.out.println("Square = " + (n*n));
   }
 }
 `,
-    html:
-`<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <title>HTML Preview</title>
-    <style>
-      body{font-family:system-ui,Segoe UI,Roboto,Arial;margin:20px;background:#0b1220;color:#e5e7eb}
-      .card{background:#111827;border:1px solid #1f2937;border-radius:12px;padding:16px}
-      button{padding:8px 10px;border-radius:8px;border:1px solid #334155;background:#0b1220;color:#e5e7eb}
-    </style>
-  </head>
-  <body>
-    <div class="card">
-      <h2>Hello, HTML!</h2>
-      <p>This is rendered in a sandboxed iframe.</p>
-      <button onclick="alert('JS works!')">Click me</button>
-    </div>
-  </body>
-</html>`
+    html: `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Preview</title></head><body><h2>Hello, HTML!</h2></body></html>`,
+    css: `body{font-family:system-ui;margin:20px;background:#0b1220;color:#e5e7eb}`,
+    js: `document.body.insertAdjacentHTML('beforeend','<p>JS running ✅</p>');`,
+    sql: `-- Write SQL here. Example:
+CREATE TABLE t(id INTEGER PRIMARY KEY, name TEXT);
+INSERT INTO t(name) VALUES ('Ada'),('Grace'),('Linus');
+SELECT * FROM t;`
   };
 
-  // Monaco
+  // Monaco boot
   require.config({ paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs' }});
   require(['vs/editor/editor.main'], function () {
     monaco.editor.defineTheme("plunkyDark", {
       base:"vs-dark", inherit:true,
       rules:[
         { token:"keyword", foreground:"C586C0", fontStyle:"bold" },
-        { token:"string", foreground:"CE9178" },
-        { token:"number", foreground:"B5CEA8" },
-        { token:"type", foreground:"4EC9B0" },
+        { token:"string",  foreground:"CE9178" },
+        { token:"number",  foreground:"B5CEA8" },
+        { token:"type",    foreground:"4EC9B0" },
         { token:"comment", foreground:"6A9955", fontStyle:"italic" }
       ],
       colors:{ "editor.background":"#0b1220" }
     });
+
+    // single-editor model
     model = monaco.editor.createModel(samples.java, "java", monaco.Uri.parse("inmemory://model/Main.java"));
     editor = monaco.editor.create(document.getElementById('editor'), {
       model, theme:"plunkyDark", automaticLayout:true, fontSize:14, minimap:{enabled:false}
     });
+
+    // 3 web editors
+    htmlEd = monaco.editor.create(document.getElementById('htmlEd'), {
+      value:samples.html, language:'html', theme:'plunkyDark', automaticLayout:true, fontSize:14, minimap:{enabled:false}
+    });
+    cssEd = monaco.editor.create(document.getElementById('cssEd'), {
+      value:samples.css, language:'css', theme:'plunkyDark', automaticLayout:true, fontSize:14, minimap:{enabled:false}
+    });
+    jsEd = monaco.editor.create(document.getElementById('jsEd'), {
+      value:samples.js, language:'javascript', theme:'plunkyDark', automaticLayout:true, fontSize:14, minimap:{enabled:false}
+    });
+
+    setEditorsVisible("single"); // default Java uses single editor
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => run());
+    htmlEd.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => run());
+    cssEd.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => run());
+    jsEd.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => run());
   });
+
+  // SQL init (async)
+  initSqlJs({ locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${f}` })
+    .then(SQLLib => SQL = SQLLib);
 
   // Terminal
   window.addEventListener("DOMContentLoaded", () => {
@@ -156,95 +215,141 @@ public class Main {
     term.open(document.getElementById('term'));
     document.getElementById('runBtn').onclick = run;
     document.getElementById('stopBtn').onclick = stopRun;
+    document.getElementById('sendBtn').onclick = sendWhatsApp;
     document.getElementById('langSel').onchange = onLangChange;
+
+    // draggable splitter
+    const wrap = document.querySelector('.wrap');
+    const handle = document.getElementById('splitter');
+    let dragging=false, startX=0, startW=0;
+    handle.addEventListener('mousedown', (e)=>{ dragging=true; startX=e.clientX; startW=parseFloat(getComputedStyle(wrap).getPropertyValue('--outw')); document.body.style.userSelect='none'; });
+    window.addEventListener('mousemove',(e)=>{ if(!dragging) return; const dx = e.clientX - startX; const newW = Math.max(360, startW + dx); wrap.style.setProperty('--outw', newW+'px'); });
+    window.addEventListener('mouseup', ()=>{ dragging=false; document.body.style.userSelect=''; });
   });
 
+  function setEditorsVisible(mode){
+    document.getElementById('singleEditor').style.display = (mode==="single")?"block":"none";
+    document.getElementById('webEditors').style.display   = (mode==="web")?"grid":"none";
+  }
+
   function setStatus(text, kind=""){ const el=document.getElementById('status'); el.textContent=text; el.className="status "+(kind||""); }
+  function showSpinner(v){ document.getElementById('spinner').style.display = v ? 'inline-block' : 'none'; }
   function clearMarkers(){ if(!model) return; monaco.editor.setModelMarkers(model, "diags", []); }
   function setMarkers(diags){
     if(!model) return;
-    const markers = (diags||[]).map(d => ({
+    const markers = (diags||[]).map(d=>({
       message:d.message, startLineNumber:d.line||1, startColumn:d.column||1,
       endLineNumber:d.line||1, endColumn:(d.column||1)+1,
-      severity: /warning/i.test(d.severity) ? monaco.MarkerSeverity.Warning : monaco.MarkerSeverity.Error
+      severity:/warning/i.test(d.severity)?monaco.MarkerSeverity.Warning:monaco.MarkerSeverity.Error
     }));
-    monaco.editor.setModelMarkers(model, "diags", markers);
-    if (markers.length){
-      editor.revealLineInCenter(markers[0].startLineNumber);
-      editor.setPosition({ lineNumber: markers[0].startLineNumber, column: markers[0].startColumn });
-    }
+    monaco.editor.setModelMarkers(model,"diags",markers);
+    if(markers.length){ editor.revealLineInCenter(markers[0].startLineNumber); editor.setPosition({ lineNumber:markers[0].startLineNumber, column:markers[0].startColumn }); }
   }
 
   function onLangChange(e){
     lang = e.target.value;
-    const preview = document.getElementById('preview');
-    const hint = document.getElementById('hint');
+    const preview = document.getElementById('preview'), hint = document.getElementById('hint');
+    document.getElementById('term').style.display = (lang==="java")?"block":"none";
+    preview.style.display = (lang==="web" || lang==="html")?"block":"none";
+    document.getElementById('sqlout').style.display = (lang==="sql")?"block":"none";
 
-    if (lang === "html"){
-      monaco.editor.setModelLanguage(model, "html");
-      editor.setValue(samples.html);
-      document.getElementById('term').style.display = "none";
-      preview.style.display = "block";
-      hint.textContent = "This is a live, sandboxed HTML preview.";
-      setStatus("Ready.");
-    } else {
-      monaco.editor.setModelLanguage(model, "java");
+    if(lang==="java"){
+      setEditorsVisible("single");
+      monaco.editor.setModelLanguage(model,"java");
       editor.setValue(samples.java);
-      preview.style.display = "none";
-      document.getElementById('term').style.display = "block";
       hint.textContent = "Type into the console when your program asks for input (e.g., Scanner).";
-      setStatus("Ready.");
+    }else if(lang==="html"){
+      setEditorsVisible("single");
+      monaco.editor.setModelLanguage(model,"html");
+      editor.setValue(samples.html);
+      hint.textContent = "HTML preview is shown on the right.";
+    }else if(lang==="web"){
+      setEditorsVisible("web");
+      hint.textContent = "Edit HTML, CSS, JS in three panes. Preview updates on Run.";
+    }else if(lang==="sql"){
+      setEditorsVisible("single");
+      monaco.editor.setModelLanguage(model,"sql"); // syntax only
+      editor.setValue(samples.sql);
+      hint.textContent = "Outputs from SELECT appear as a table.";
     }
-    clearMarkers();
-    if (ws) { try { ws.close(); } catch {} ws = null; }
-    term?.clear();
+    setStatus("Ready."); clearMarkers(); term?.clear(); if(ws){ try{ ws.close(); }catch{} ws=null; }
   }
 
   async function run(){
     const preview = document.getElementById('preview');
+    const sqlout  = document.getElementById('sqlout');
 
-    if (lang === "html"){
+    if(lang==="html"){
       setStatus("Rendering HTML…","ok");
-      const code = editor.getValue();
-      // If it's not a full document, wrap it
-      const html = /<html[\s\S]*<\/html>/i.test(code)
-        ? code
-        : `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Preview</title></head><body>${code}</body></html>`;
-      preview.srcdoc = html;
+      preview.srcdoc = editor.getValue();
       return;
     }
 
-    try {
-      setStatus("Compiling…");
+    if(lang==="web"){
+      setStatus("Rendering HTML+CSS+JS…","ok");
+      const html = htmlEd.getValue(), css = cssEd.getValue(), js = jsEd.getValue();
+      preview.srcdoc = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${css}</style></head><body>${html}<script>${js}<\/script></body></html>`;
+      return;
+    }
+
+    if(lang==="sql"){
+      if(!SQL){ setStatus("Loading SQL engine…","err"); return; }
+      setStatus("Running SQL…","ok");
+      sqlout.innerHTML = "";
+      try{
+        const db = new SQL.Database();
+        const res = db.exec(editor.getValue()); // array of {columns, values}
+        if(!res.length){ sqlout.textContent = "Done."; return; }
+        const last = res[res.length-1];
+        const table = document.createElement('table');
+        const thead = document.createElement('thead');
+        const trh = document.createElement('tr');
+        last.columns.forEach(c=>{ const th=document.createElement('th'); th.textContent=c; trh.appendChild(th); });
+        thead.appendChild(trh); table.appendChild(thead);
+        const tb = document.createElement('tbody');
+        last.values.forEach(row=>{
+          const tr=document.createElement('tr');
+          row.forEach(v=>{ const td=document.createElement('td'); td.textContent=(v===null?"NULL":String(v)); tr.appendChild(td); });
+          tb.appendChild(tr);
+        });
+        table.appendChild(tb); sqlout.appendChild(table);
+        setStatus("Finished (SQL)","ok");
+      }catch(e){ setStatus("SQL error","err"); sqlout.textContent = String(e); }
+      return;
+    }
+
+    // Java path (backend)
+    try{
+      setStatus("Compiling…"); showSpinner(true);
       clearMarkers(); term.clear();
       const files = [{ path:"Main.java", content: editor.getValue() }];
 
       const res = await fetch(API_BASE + "/api/java/prepare", {
-        method:"POST",
-        headers:{ "Content-Type":"application/json" },
+        method:"POST", headers:{ "Content-Type":"application/json" },
         body: JSON.stringify({ mainClass:"Main", files })
       });
 
       if(!res.ok){
         let msg=""; try{ msg = await res.text(); }catch{}
-        setStatus(`Compile request failed (${res.status})${msg? " – " + msg : ""}`,"err");
-        return;
+        setStatus(`Compile request failed (${res.status})${msg? " – " + msg : ""}`,"err"); showSpinner(false); return;
       }
 
       const data = await res.json();
       if(!data.ok){
-        setMarkers(data.diagnostics||[]);
-        setStatus("Compilation failed – see editor.","err");
-        if(data.compileLog) term.write(data.compileLog);
-        return;
+        setMarkers(data.diagnostics||[]); setStatus("Compilation failed – see editor.","err");
+        if(data.compileLog) term.write(data.compileLog); showSpinner(false); return;
       }
 
-      setStatus("Running (interactive)…","ok");
+      setStatus("Running (interactive)…","ok"); showSpinner(false);
       const wsURL = (location.origin.replace("http","ws")) + "/term?token=" + encodeURIComponent(data.token);
       ws = new WebSocket(wsURL);
       ws.onmessage = (e) => {
         const msg = JSON.parse(e.data);
-        if (msg.type === "stdout") term.write(msg.data);
+        if (msg.type === "stdout") {
+          // Hide "Picked up JAVA_TOOL_OPTIONS..." noise
+          const filtered = msg.data.replace(/^Picked up JAVA_TOOL_OPTIONS:.*\r?\n?/mg, "");
+          if (filtered) term.write(filtered);
+        }
         if (msg.type === "exit") {
           term.write(`\r\n\nProcess exited with code ${msg.code}\r\n`);
           setStatus("Finished (exit " + msg.code + ")", msg.code === 0 ? "ok" : "err");
@@ -254,21 +359,38 @@ public class Main {
       ws.onclose = () => { ws = null; };
       term.onData(d => { if (ws) ws.send(JSON.stringify({ type:"stdin", data:d })) });
 
-    } catch (err) {
-      console.error(err);
-      setStatus("Network error – cannot reach compiler backend.","err");
+    }catch(err){
+      console.error(err); setStatus("Network error – cannot reach compiler backend.","err"); showSpinner(false);
     }
   }
 
   function stopRun(){
     const preview = document.getElementById('preview');
-    if (lang === "html"){
+    if (lang === "html" || lang === "web"){
       preview.srcdoc = "<!DOCTYPE html><html><body style='font-family:system-ui;background:#0b1220;color:#e5e7eb;margin:20px'>Stopped.</body></html>";
-      setStatus("Stopped.","err");
-      return;
+      setStatus("Stopped.","err"); return;
     }
-    if (ws) { try { ws.close(); } catch{} ws = null; }
+    if (ws) { try{ ws.close(); } catch{} ws=null; }
     setStatus("Stopped.","err");
+  }
+
+  async function sendWhatsApp(){
+    // Screenshot the whole work area
+    const area = document.getElementById('captureArea');
+    try{
+      const canvas = await html2canvas(area, { backgroundColor: "#0f172a", useCORS:true, scale: 1.2 });
+      const blob = await new Promise(r => canvas.toBlob(r, "image/png", 0.95));
+      // Try to copy to clipboard (Chrome/Edge)
+      try{
+        await navigator.clipboard.write([ new ClipboardItem({ "image/png": blob }) ]);
+      }catch(_){}
+      // Open WhatsApp chat with prefilled text
+      const msg = encodeURIComponent("Code & output from Edifica Polycode.\n(If an image didn’t attach automatically, paste from clipboard.)");
+      window.open("https://wa.me/919836313636?text=" + msg, "_blank");
+    }catch(e){
+      alert("Could not capture the screen. You can still open WhatsApp and paste the code/output manually.");
+      window.open("https://wa.me/919836313636", "_blank");
+    }
   }
 </script>
 </body>
