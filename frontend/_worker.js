@@ -1,30 +1,17 @@
 export default {
   async fetch(request, env) {
     try {
-      const reqUrl = new URL(request.url);
-
-      // Proxy these paths to your backend
-      const isProxyPath =
-        reqUrl.pathname.startsWith("/api/") || reqUrl.pathname === "/term";
-
-      if (isProxyPath) {
-        const backend = env.BACKEND_URL;
-        if (!backend) {
-          return new Response("BACKEND_URL is not set", { status: 500 });
-        }
-        const target = new URL(backend);
-        reqUrl.hostname = target.hostname;
-        reqUrl.protocol = target.protocol;
-        reqUrl.port = target.port || "";
-
-        // Proxy request (keeps method/headers/body, supports WebSocket)
-        return fetch(new Request(reqUrl.toString(), request));
+      const url = new URL(request.url);
+      const needsProxy = url.pathname.startsWith("/api/") || url.pathname === "/term";
+      if (needsProxy) {
+        if (!env.BACKEND_URL) return new Response("BACKEND_URL is not set", { status: 500 });
+        const b = new URL(env.BACKEND_URL);
+        url.hostname = b.hostname; url.protocol = b.protocol; url.port = b.port || "";
+        return fetch(new Request(url.toString(), request)); // WS supported
       }
-
-      // Serve static assets (index.html, etc.)
-      return env.ASSETS.fetch(request);
-    } catch (err) {
-      return new Response("Worker error: " + (err && err.stack || err), { status: 500 });
+      return env.ASSETS.fetch(request); // serve index.html etc.
+    } catch (e) {
+      return new Response("Worker error: " + (e?.stack || e), { status: 500 });
     }
   }
 }
