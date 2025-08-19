@@ -362,3 +362,134 @@ export async function notifyTeacher({ imageUrl, codeUrl, student, lang }) {
   if (!data.ok) throw new Error(data.error || 'Notify failed');
   return data;
 }
+
+
+
+// --- Simple text wrapping helpers (monospace-ish) ----------------------------
+function wrapLines(ctx, text, maxWidth) {
+  const words = String(text).replace(/\r\n/g, '\n').split(/\s+/);
+  const lines = [];
+  let line = '';
+  for (const w of words) {
+    const test = line ? line + ' ' + w : w;
+    if (ctx.measureText(test).width <= maxWidth) {
+      line = test;
+    } else {
+      if (line) lines.push(line);
+      // long word fallback: hard-split if wider than max
+      if (ctx.measureText(w).width > maxWidth) {
+        let tmp = '';
+        for (const ch of w) {
+          const t2 = tmp + ch;
+          if (ctx.measureText(t2).width <= maxWidth) tmp = t2;
+          else { lines.push(tmp); tmp = ch; }
+        }
+        line = tmp;
+      } else {
+        line = w;
+      }
+    }
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+function drawParagraph(ctx, text, x, y, maxWidth, lineHeight, color) {
+  ctx.fillStyle = color;
+  const lines = String(text).split('\n');
+  for (const raw of lines) {
+    const parts = wrapLines(ctx, raw, maxWidth);
+    for (const p of parts) {
+      ctx.fillText(p, x, y);
+      y += lineHeight;
+    }
+  }
+  return y;
+}
+
+// rounded rect
+function roundRect(ctx, x, y, w, h, r) {
+  r = Math.min(r, w/2, h/2);
+  ctx.beginPath();
+  ctx.moveTo(x+r, y);
+  ctx.arcTo(x+w, y,   x+w, y+h, r);
+  ctx.arcTo(x+w, y+h, x,   y+h, r);
+  ctx.arcTo(x,   y+h, x,   y,   r);
+  ctx.arcTo(x,   y,   x+w, y,   r);
+  ctx.closePath();
+}
+
+// --- Public: render a composite PNG with code + output + meta ----------------
+export async function renderSubmissionPNG({ codeText, outputText, lang='JAVA', student='' }) {
+  const W = 1400, H = 900;
+  const pad = 28, gutter = 18;
+  const leftW = Math.floor((W - pad*2 - gutter) * 0.58);
+  const rightW = (W - pad*2 - gutter) - leftW;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+
+  // background
+  ctx.fillStyle = '#0b1220';
+  ctx.fillRect(0,0,W,H);
+
+  // header
+  ctx.fillStyle = '#e5e7eb';
+  ctx.font = '600 22px ui-sans-serif,system-ui,Segoe UI,Roboto,Arial';
+  ctx.fillText('Edifica PolyCode', pad, pad + 22);
+  ctx.font = '12px ui-sans-serif,system-ui,Segoe UI,Roboto,Arial';
+  const ts = new Date().toLocaleString();
+  ctx.fillStyle = '#93c5fd';
+  ctx.fillText(`Language: ${lang}`, pad, pad + 22 + 18);
+  ctx.fillStyle = '#9ca3af';
+  ctx.fillText(`Student: ${student || '—'}    •    ${ts}`, pad + 160, pad + 22 + 18);
+
+  // panels
+  const top = pad + 22 + 18 + 18;
+  const panelH = H - top - pad;
+
+  // left (code)
+  ctx.save();
+  roundRect(ctx, pad, top, leftW, panelH, 12);
+  ctx.clip();
+  ctx.fillStyle = '#0f172a';
+  ctx.fillRect(pad, top, leftW, panelH);
+  ctx.fillStyle = '#334155';
+  ctx.fillRect(pad, top, leftW, 34);
+  ctx.fillStyle = '#e5e7eb';
+  ctx.font = '600 13px ui-sans-serif,system-ui,Segoe UI,Roboto,Arial';
+  ctx.fillText('Code', pad + 10, top + 22);
+
+  ctx.font = '13px ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace';
+  let y = top + 50;
+  y = drawParagraph(ctx, codeText, pad + 12, y, leftW - 24, 18, '#e5e7eb');
+  ctx.restore();
+
+  // right (output)
+  ctx.save();
+  const rx = pad + leftW + gutter;
+  roundRect(ctx, rx, top, rightW, panelH, 12);
+  ctx.clip();
+  ctx.fillStyle = '#0f172a';
+  ctx.fillRect(rx, top, rightW, panelH);
+  ctx.fillStyle = '#334155';
+  ctx.fillRect(rx, top, rightW, 34);
+  ctx.fillStyle = '#e5e7eb';
+  ctx.font = '600 13px ui-sans-serif,system-ui,Segoe UI,Roboto,Arial';
+  ctx.fillText('Output', rx + 10, top + 22);
+
+  ctx.font = '13px ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace';
+  let y2 = top + 50;
+  y2 = drawParagraph(ctx, outputText || '(no output)', rx + 12, y2, rightW - 24, 18, '#e5e7eb');
+  ctx.restore();
+
+  // footer stripe
+  ctx.fillStyle = '#1f2937';
+  ctx.fillRect(0, H-4, W, 4);
+
+  // to Blob
+  const blob = await new Promise(res => canvas.toBlob(res, 'image/png', 0.95));
+  return blob;
+}
+
