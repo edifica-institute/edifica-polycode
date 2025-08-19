@@ -349,3 +349,16 @@ Image: ${data.imageUrl}
 Code: ${data.codeUrl}`;
   window.open('https://wa.me/919836313636?text=' + encodeURIComponent(text), '_blank');
 }
+
+
+export async function notifyTeacher({ imageUrl, codeUrl, student, lang }) {
+  const res = await fetch('/api/notify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ imageUrl, codeUrl, student, lang })
+  });
+  if (!res.ok) throw new Error(`Notify failed (${res.status})`);
+  const data = await res.json();
+  if (!data.ok) throw new Error(data.error || 'Notify failed');
+  return data;
+}
