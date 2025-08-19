@@ -8,10 +8,16 @@
 <!-- xterm + monaco + sql.js + html2canvas -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
 <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
+
+  <script>window.__amd_define = window.define; window.define = undefined;</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script>window.define = window.__amd_define;</script>
 
+
+<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
+
+  
 <style>
   :root{
     --bg:#0f172a; --card:#111827; --text:#e5e7eb; --muted:#9ca3af; --accent:#22c55e; --danger:#ef4444;
@@ -140,7 +146,7 @@
 <script>
   // Same-origin: Cloudflare Pages proxy routes /api and /term to backend
   const API_BASE = "";
-
+const WS_BASE  = location.origin.replace("http", "ws");
   // state
   let ws=null, term=null, lang="java", SQL=null;
   let editor, model, htmlEd, cssEd, jsEd, sqlModel;
