@@ -271,7 +271,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 import { initMonaco, setLanguage, setValue } from './core/editor.js';
 import { initTerminal } from './core/terminal.js';
 import {
-  setStatus, initSplitter, captureAreaAsBlob,
+  setStatus, initSplitter, fitLayoutHeight, captureAreaAsBlob,
   copyTextToClipboard, openWhatsApp, uploadSubmission
 } from './core/ui.js';
 import * as javaLang from './lang/java.js';
@@ -284,6 +284,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   await initMonaco();
   initTerminal();
   initSplitter();
+  fitLayoutHeight();
   setStatus("Ready.");
 
   // Wire buttons
