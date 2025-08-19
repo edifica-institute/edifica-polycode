@@ -14,6 +14,8 @@ button.primary { background:#10b98122; border-color:#10b98166; }
 button.danger { background:#ef444422; border-color:#ef444455; }
 #editor { height: 72vh; }
 #term { height: calc(72vh - 42px); padding:8px; }
+#preview { height: calc(72vh - 42px); width:100%; border:0; background:#0b1220; }
+
 .status { padding:8px 10px; font-size:13px; border-bottom:1px solid #1f2937; display:flex; gap:10px; align-items:center; }
 .status.ok { color:var(--accent); }
 .status.err { color:var(--danger); }
