@@ -11,47 +11,67 @@ import { setStatus } from '../core/ui.js';
  * If you prefer CDN, see ensureSql() candidates below.
  */
 
-let SQL = null;          // sql.js module object
-let lastOutput = '';     // plain-text dump of the last run (for "Send")
-export function getLastOutput(){ return lastOutput; }
+
+let SQL = null;
 
 function loadScript(url){
   return new Promise((resolve, reject)=>{
     const s = document.createElement('script');
     s.src = url; s.async = true;
-    s.onload = ()=>resolve(); s.onerror = ()=>reject(new Error('load fail '+url));
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error('Failed to load ' + url));
     document.head.appendChild(s);
   });
 }
-function localFromHere(rel) {
-  // this file is /js/lang/sql.js → vendor is ../../vendor/...
-  try { return new URL(rel, import.meta.url).href; } catch { return rel; }
+
+function relFromHere(rel){
+  // sql.js is at /js/lang/sql.js → ../../vendor/... = /vendor/...
+  try { return new URL(rel, import.meta.url).href; }
+  catch { return rel; }
 }
 
 async function ensureSql(){
   if (SQL) return SQL;
-  // Try local → CDN (no bundlers needed)
+
+  // Try local first, then CDNs
   const candidates = [
-    localFromHere('../../vendor/sql-wasm.js'),
+    relFromHere('../../vendor/sql-wasm.js'),                               // /vendor/sql-wasm.js
     'https://cdn.jsdelivr.net/npm/sql.js@1.8.0/dist/sql-wasm.js',
-    'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js'
+    'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js',
   ];
-  let ok = false;
+
+  let wasmBase = null;
   for (const u of candidates){
-    try { await loadScript(u); ok = typeof initSqlJs === 'function'; if (ok) break; } catch {}
+    try {
+      await loadScript(u);
+      if (typeof initSqlJs === 'function') {
+        // whatever folder the JS came from, use the SAME folder for the .wasm
+        wasmBase = u.replace(/[^/]+$/, '');
+        break;
+      }
+    } catch {}
   }
-  if (!ok) throw new Error('Could not load sql.js');
+  if (!wasmBase) throw new Error('Could not load sql.js');
 
   SQL = await initSqlJs({
-    // Prefer local wasm; fallback to the same CDN the loader came from
-    locateFile: (filename) => {
-      // filename is "sql-wasm.wasm"
-      const locals = localFromHere('../../vendor/' + filename);
-      return locals;
-    }
+    locateFile: (filename) => wasmBase + filename   // e.g. .../sql-wasm.wasm
   });
   return SQL;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // Build a <table> for the last SELECT; also construct a text dump
 function renderTable(container, result){
