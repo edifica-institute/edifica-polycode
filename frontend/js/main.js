@@ -117,16 +117,16 @@ function stop(){
 // js/main.js
 import { initMonaco, setLanguage, setValue } from './core/editor.js';
 import { initTerminal } from './core/terminal.js';
-import { setStatus } from './core/ui.js';
+import {
+  setStatus, initSplitter, captureAreaAsBlob, copyTextToClipboard, openWhatsApp, uploadSubmission
+} from './core/ui.js';
 import * as javaLang from './lang/java.js';   // ← namespace import
 let current = 'java';
 let htmlMod = null;
 
 
 
-import {
-  setStatus, initSplitter, captureAreaAsBlob, copyTextToClipboard, openWhatsApp, uploadSubmission
-} from './core/ui.js';
+
 // ...rest of your imports
 
 // Inside DOMContentLoaded
