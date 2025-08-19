@@ -130,31 +130,31 @@ function loadScript(url) {
 }
 
 export async function ensureScreenshotLibs() {
-  // If at least one lib is already loaded, we’re fine (we’ll still try to ensure html2canvas below)
   if (window.htmlToImage && window.html2canvas) return;
-
   if (_libsPromise) return _libsPromise;
 
   _libsPromise = (async () => {
-    // Try to load html-to-image (OPTIONAL). Do not throw if it fails.
+    // OPTIONAL: html-to-image (try local then CDNs; never throw)
     if (!window.htmlToImage) {
-      const htmlToImageCDNs = [
+      const candidates = [
+        '/vendor/html-to-image.min.js',
         'https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js',
-        'https://unpkg.com/html-to-image@1.11.11/dist/html-to-image.min.js'
+        'https://unpkg.com/html-to-image@1.11.11/dist/html-to-image.min.js',
       ];
-      for (const u of htmlToImageCDNs) {
+      for (const u of candidates) {
         try { await loadScript(u); if (window.htmlToImage) break; } catch {}
       }
     }
 
-    // Ensure html2canvas (REQUIRED)
+    // REQUIRED: html2canvas (try local then CDNs)
     if (!window.html2canvas) {
-      const html2canvasCDNs = [
+      const candidates = [
+        '/vendor/html2canvas.min.js',
         'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js',
-        'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'
+        'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
       ];
       let ok = false;
-      for (const u of html2canvasCDNs) {
+      for (const u of candidates) {
         try { await loadScript(u); ok = !!window.html2canvas; if (ok) break; } catch {}
       }
       if (!ok) throw new Error('Could not load html2canvas (required)');
@@ -163,6 +163,7 @@ export async function ensureScreenshotLibs() {
 
   return _libsPromise;
 }
+
 
 
 
