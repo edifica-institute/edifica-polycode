@@ -32,8 +32,8 @@ export function activate(){
   if (term) term.style.display = 'none';
   if (preview) preview.style.display = 'block';
 
-  const hint = document.getElementById('hint');
-  if (hint) hint.textContent = "Rendering HTML web view according to the code specified";
+  //const hint = document.getElementById('hint');
+  //if (hint) hint.textContent = "Rendering HTML web view according to the code specified";
 }
 
 export async function run(){
