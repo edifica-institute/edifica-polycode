@@ -10,7 +10,7 @@ term = new Terminal({
   theme: {
     background: '#0b1220',    // matches your app background
     foreground: '#e5e7eb',
-    cursor: text,
+    cursor: 'bar',
     selection: '#334155aa',
   },
 });
