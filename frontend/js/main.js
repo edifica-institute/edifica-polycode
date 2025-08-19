@@ -17,7 +17,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 
 
 // js/main.js
-import { initMonaco } from './core/editor.js';
+import { initMonaco, setLanguage, setValue } from './core/editor.js';
 import { initTerminal } from './core/terminal.js';
 import { setStatus } from './core/ui.js';
 import { runJava, stopJava } from './lang/java.js';
@@ -44,26 +44,59 @@ async function switchLang(lang){
 
   const term    = document.getElementById('term');
   const preview = document.getElementById('preview');
+  const hint    = document.getElementById('hint') || document.querySelector('.note:last-of-type');
+
+  // default visibilities
   if (term)    term.style.display    = (lang === 'java') ? 'block' : 'none';
   if (preview) preview.style.display = (lang === 'html') ? 'block' : 'none';
 
   if (lang === 'html') {
-    if (!htmlMod) htmlMod = await import('./lang/html.js');
-    htmlMod.activate();
+    try {
+      // lazy-load the module so a load error won't block Monaco
+      if (!htmlMod) htmlMod = await import('./lang/html.js');
+      htmlMod.activate();
+      if (hint) hint.textContent = "HTML preview is shown on the right.";
+    } catch (e) {
+      console.error('Failed to load html module:', e);
+      // Fallback: still switch the editor & show preview
+      setLanguage('html');
+      setValue(`<!doctype html><html><head><meta charset="utf-8"><title>Preview</title></head><body><h2>Hello, HTML!</h2></body></html>`);
+      if (preview) preview.srcdoc = `<!doctype html><html><body style="font-family:system-ui;background:#0b1220;color:#e5e7eb;margin:20px">HTML module failed to load. A fallback preview is shown.</body></html>`;
+      if (hint) hint.textContent = "HTML preview is shown on the right.";
+      setStatus("Ready.");
+    }
   } else {
+    // back to Java
+    if (hint) hint.textContent = "Type into the console when your program asks for input (e.g., Scanner).";
     setStatus("Ready.");
   }
 }
 
 async function run(){
   if (current === 'html') {
-    if (!htmlMod) htmlMod = await import('./lang/html.js');
-    return htmlMod.run();
+    try {
+      if (!htmlMod) htmlMod = await import('./lang/html.js');
+      return htmlMod.run();
+    } catch (e) {
+      // last-resort: render whatever is in the editor
+      const preview = document.getElementById('preview');
+      if (preview) {
+        setStatus("Rendering HTML (fallback)…","ok");
+        const code = monaco.editor.getModels()[0].getValue();
+        preview.srcdoc = /<html[\s\S]*<\/html>/i.test(code)
+          ? code
+          : `<!doctype html><html><body>${code}</body></html>`;
+      }
+      return;
+    }
   }
   return runJava();
 }
 
 function stop(){
-  if (current === 'html') { htmlMod?.stop?.(); return; }
+  if (current === 'html') {
+    try { htmlMod?.stop?.(); } catch {}
+    return;
+  }
   return stopJava();
 }
