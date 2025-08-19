@@ -110,8 +110,68 @@ export function initSplitter(){
 }
 
 
+
+
+
+
+
+
+let _libsPromise = null;
+
+function loadScript(url) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = url;
+    s.async = true;
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error('Failed to load ' + url));
+    document.head.appendChild(s);
+  });
+}
+
+export async function ensureScreenshotLibs() {
+  if (window.htmlToImage && window.html2canvas) return; // already present
+  if (_libsPromise) return _libsPromise;
+
+  _libsPromise = (async () => {
+    // Try html-to-image from multiple CDNs
+    if (!window.htmlToImage) {
+      const htmlToImageCDNs = [
+        'https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js',
+        'https://unpkg.com/html-to-image@1.11.11/dist/html-to-image.min.js'
+      ];
+      let ok = false;
+      for (const u of htmlToImageCDNs) {
+        try { await loadScript(u); ok = !!window.htmlToImage; if (ok) break; } catch {}
+      }
+      if (!ok) throw new Error('html-to-image failed to load');
+    }
+
+    // Try html2canvas from multiple CDNs
+    if (!window.html2canvas) {
+      const html2canvasCDNs = [
+        'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js',
+        'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'
+      ];
+      let ok = false;
+      for (const u of html2canvasCDNs) {
+        try { await loadScript(u); ok = !!window.html2canvas; if (ok) break; } catch {}
+      }
+      if (!ok) throw new Error('html2canvas failed to load');
+    }
+  })();
+
+  return _libsPromise;
+}
+
+
+
+
+
+
 // ---- Screenshot helpers (works with HTML or Terminal visible) --------------
 export async function captureAreaAsBlob() {
+  await ensureScreenshotLibs();   
   const area =
     document.querySelector(".wrap") ||
     document.getElementById("captureArea") ||
