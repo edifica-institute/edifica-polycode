@@ -1,20 +1,30 @@
 export default {
-  async fetch(request, env, ctx) {
-    const url = new URL(request.url);
+  async fetch(request, env) {
+    try {
+      const reqUrl = new URL(request.url);
 
-    // Proxy API & WebSocket paths to backend
-    if (url.pathname.startsWith("/api") || url.pathname.startsWith("/term")) {
-      const backend = new URL(env.BACKEND_URL);
-      url.hostname = backend.hostname;
-      url.protocol = backend.protocol;
-      url.port     = backend.port || "";
-      url.username = "";
-      url.password = "";
-      // Forward request (Workers supports WS upgrade automatically)
-      return fetch(new Request(url.toString(), request));
+      // Proxy these paths to your backend
+      const isProxyPath =
+        reqUrl.pathname.startsWith("/api/") || reqUrl.pathname === "/term";
+
+      if (isProxyPath) {
+        const backend = env.BACKEND_URL;
+        if (!backend) {
+          return new Response("BACKEND_URL is not set", { status: 500 });
+        }
+        const target = new URL(backend);
+        reqUrl.hostname = target.hostname;
+        reqUrl.protocol = target.protocol;
+        reqUrl.port = target.port || "";
+
+        // Proxy request (keeps method/headers/body, supports WebSocket)
+        return fetch(new Request(reqUrl.toString(), request));
+      }
+
+      // Serve static assets (index.html, etc.)
+      return env.ASSETS.fetch(request);
+    } catch (err) {
+      return new Response("Worker error: " + (err && err.stack || err), { status: 500 });
     }
-
-    // Serve static assets (index.html, etc.)
-    return env.ASSETS.fetch(request);
   }
 }
