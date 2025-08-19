@@ -33,7 +33,7 @@ export function activate(){
   if (preview) preview.style.display = 'block';
 
   //const hint = document.getElementById('hint');
-  //if (hint) hint.textContent = "Rendering HTML web view according to the code specified";
+  if (hint) hint.textContent = "Rendering HTML web view according to the code specified";
 }
 
 export async function run(){
@@ -46,7 +46,7 @@ export async function run(){
     ? code
     : `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Preview</title></head><body>${code}</body></html>`;
   preview.srcdoc = html;
-  //setStatus("Execution Success! (Exit Code - 0)","ok");
+  setStatus("Execution Success! (Exit Code - 0)","ok");
 }
 
 export function stop(){ setStatus("Stopped.","err"); }
