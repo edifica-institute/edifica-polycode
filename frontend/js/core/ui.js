@@ -40,3 +40,19 @@ export function initSplitter(){
     document.body.style.userSelect = '';
   });
 }
+
+
+
+export async function uploadSubmission({ screenshotBlob, codeText, student, lang }) {
+  const fd = new FormData();
+  fd.append('screenshot', new File([screenshotBlob], 'screenshot.png', { type:'image/png' }));
+  fd.append('code', new File([codeText], `code.${(lang||'txt').toLowerCase()}.txt`, { type:'text/plain;charset=utf-8' }));
+  if (student) fd.append('student', student);
+  if (lang)    fd.append('lang', lang);
+
+  const res = await fetch('/api/upload', { method:'POST', body: fd });
+  if (!res.ok) throw new Error(`Upload failed (${res.status})`);
+  const data = await res.json();
+  if (!data.ok) throw new Error(data.error || 'Upload failed');
+  return data; // { ok:true, imageUrl, codeUrl, ... }
+}
