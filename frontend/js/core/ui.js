@@ -292,8 +292,6 @@ export async function uploadSubmission({ screenshotBlob, codeText, student, lang
 
 export function fitLayoutHeight() {
   const header = document.querySelector('header');
-  const headerH = header ? header.offsetHeight : 0;
-  // 24px = .wrap vertical padding (12 top + 12 bottom)
-  const h = Math.max(360, window.innerHeight - headerH - 24);
+  const h = Math.max(360, window.innerHeight - (header?.offsetHeight || 0) - 24); // 24 = .wrap padding
   document.documentElement.style.setProperty('--panelH', h + 'px');
 }
