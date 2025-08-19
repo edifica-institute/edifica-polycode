@@ -86,18 +86,14 @@ const SAMPLE = `// Simple Java program
 import java.io.*;
 import java.util.*;
 
-public class Main {
-  public static void main(String[] args) throws Exception {
+public class Main 
+{
+  public static void main(String[] args)
+  {
     Scanner sc = new Scanner(System.in);
     System.out.print("Enter a number: ");
     int n = sc.nextInt();
-
-    // File I/O inside sandbox
-    try (PrintWriter pw = new PrintWriter(new FileWriter("hello.txt"))) {
-      pw.println("Square = " + (n*n));
-    }
-
-    System.out.println("Wrote hello.txt");
+    System.out.println("Number = " + n);
     System.out.println("Square = " + (n*n));
   }
 }
