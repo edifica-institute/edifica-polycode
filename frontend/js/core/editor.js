@@ -123,7 +123,7 @@ export function setMarkers(diags = [], owner = 'javac') {
 }
 
 
-
+export function getCode() { return editor.getValue(); } 
 
 
 
