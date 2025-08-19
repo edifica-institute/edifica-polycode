@@ -5,15 +5,18 @@ export function initTerminal() {
 term = new Terminal({
   convertEol: true,
   cursorBlink: true,
+  cursorStyle: 'bar',
+  cursorWidth: 1,
   fontSize: 14,
   allowTransparency: true,
   theme: {
-    background: '#0b1220',    // matches your app background
+    background: '#0b1220',
     foreground: '#e5e7eb',
-    cursor: 'underline',
+    cursor: '#22c55e',
     selection: '#334155aa',
   },
 });
+
 
   term.open(document.getElementById('term'));
   return term;
