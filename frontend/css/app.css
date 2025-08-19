@@ -83,3 +83,26 @@ select{ background:#0b1220; color:#e5e7eb; border:1px solid #334155; padding:8px
   #term, #preview{ height: 40vh }
 }
 
+:root{
+  --outw: 520px;        /* right panel width */
+  --handle: 6px;        /* splitter thickness */
+  --panelH: 74vh;       /* panel height */
+}
+
+.wrap{
+  display:grid;
+  grid-template-columns: 1fr var(--handle) var(--outw);
+  gap:12px; padding:12px;
+}
+
+/* Ensure splitter is in the middle column and easy to grab */
+#splitter{
+  grid-column: 2;               /* ← important */
+  cursor: col-resize;
+  background:#243244;
+  border-radius:8px;
+  opacity:.7;
+  height: var(--panelH);        /* bigger hit area */
+}
+
+
