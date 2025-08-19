@@ -5,7 +5,7 @@ export function initTerminal() {
 term = new Terminal({
   convertEol: true,
   cursorBlink: true,
-  cursorStyle: 'underline',
+  cursorStyle: 'bar',
   cursorWidth: 1,
   fontSize: 14,
   allowTransparency: true,
