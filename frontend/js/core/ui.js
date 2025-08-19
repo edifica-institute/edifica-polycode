@@ -116,51 +116,41 @@ export function initSplitter(){
 
 
 
+// ui.js
 let _libsPromise = null;
-
-function loadScript(url) {
-  return new Promise((resolve, reject) => {
-    const s = document.createElement('script');
-    s.src = url;
-    s.async = true;
-    s.onload = () => resolve();
-    s.onerror = () => reject(new Error('Failed to load ' + url));
+function loadScript(url){
+  return new Promise((res,rej)=>{
+    const s=document.createElement('script'); s.src=url; s.async=true;
+    s.onload=()=>res(); s.onerror=()=>rej(new Error('load fail '+url));
     document.head.appendChild(s);
   });
 }
-
-export async function ensureScreenshotLibs() {
+export async function ensureScreenshotLibs(){
   if (window.htmlToImage && window.html2canvas) return;
   if (_libsPromise) return _libsPromise;
 
   _libsPromise = (async () => {
-    // OPTIONAL: html-to-image (try local then CDNs; never throw)
-    if (!window.htmlToImage) {
+    // OPTIONAL: html-to-image (local then CDN; never throw)
+    if (!window.htmlToImage){
       const candidates = [
         '/vendor/html-to-image.min.js',
         'https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js',
-        'https://unpkg.com/html-to-image@1.11.11/dist/html-to-image.min.js',
+        'https://unpkg.com/html-to-image@1.11.11/dist/html-to-image.js' // non-min path works on unpkg
       ];
-      for (const u of candidates) {
-        try { await loadScript(u); if (window.htmlToImage) break; } catch {}
-      }
+      for (const u of candidates){ try{ await loadScript(u); if(window.htmlToImage) break; }catch{} }
     }
-
-    // REQUIRED: html2canvas (try local then CDNs)
-    if (!window.html2canvas) {
+    // REQUIRED: html2canvas (local then CDNs; DO throw if all fail)
+    if (!window.html2canvas){
       const candidates = [
         '/vendor/html2canvas.min.js',
         'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js',
-        'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
+        'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'
       ];
-      let ok = false;
-      for (const u of candidates) {
-        try { await loadScript(u); ok = !!window.html2canvas; if (ok) break; } catch {}
-      }
+      let ok=false;
+      for (const u of candidates){ try{ await loadScript(u); ok=!!window.html2canvas; if(ok) break; }catch{} }
       if (!ok) throw new Error('Could not load html2canvas (required)');
     }
   })();
-
   return _libsPromise;
 }
 
