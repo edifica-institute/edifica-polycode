@@ -117,61 +117,27 @@ export function initSplitter(){
 
 
 // ui.js
-let _libsPromise = null;
+// ui.js
+let _libsPromise=null;
+function loadScript(u){return new Promise((res,rej)=>{const s=document.createElement('script');s.src=u;s.async=true;s.onload=()=>res();s.onerror=()=>rej(new Error('Failed '+u));document.head.appendChild(s);});}
+function localUrl(rel){ try{ return new URL(rel, import.meta.url).href; } catch { return rel; } }
 
-function loadScript(url) {
-  return new Promise((resolve, reject) => {
-    const s = document.createElement('script');
-    s.src = url;
-    s.async = true;
-    s.onload = () => resolve();
-    s.onerror = () => reject(new Error('Failed to load ' + url));
-    document.head.appendChild(s);
-  });
-}
-
-function localUrl(relFromUi) {
-  // ui.js is at js/core/ui.js → vendor is ../../vendor/...
-  try { return new URL(relFromUi, import.meta.url).href; }
-  catch { return relFromUi; }
-}
-
-export async function ensureScreenshotLibs() {
-  if (window.htmlToImage && window.html2canvas) return;
+export async function ensureScreenshotLibs(){
+  if (window.html2canvas) return;            // only require html2canvas
   if (_libsPromise) return _libsPromise;
-
-  _libsPromise = (async () => {
-    // OPTIONAL: html-to-image (never throw if it fails)
-    if (!window.htmlToImage) {
-      const htmlToImgCandidates = [
-        localUrl('../../vendor/html-to-image.min.js'),
-        '/vendor/html-to-image.min.js',
-        './vendor/html-to-image.min.js',
-        'https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js',
-        'https://unpkg.com/html-to-image@1.11.11/dist/html-to-image.min.js',
-      ];
-      for (const u of htmlToImgCandidates) {
-        try { await loadScript(u); if (window.htmlToImage) break; } catch {}
-      }
-    }
-
-    // REQUIRED: html2canvas (throw only if all attempts fail)
-    if (!window.html2canvas) {
-      const h2cCandidates = [
-        localUrl('../../vendor/html2canvas.min.js'),
-        '/vendor/html2canvas.min.js',
-        './vendor/html2canvas.min.js',
-        'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js',
-        'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
-      ];
-      let ok = false;
-      for (const u of h2cCandidates) {
-        try { await loadScript(u); ok = !!window.html2canvas; if (ok) break; } catch {}
-      }
-      if (!ok) throw new Error('Could not load html2canvas (required)');
-    }
+  _libsPromise = (async ()=>{
+    // REQUIRED (local → CDNs)
+    const candidates = [
+      localUrl('../../vendor/html2canvas.min.js'), // /js/core/ui.js → ../../vendor/...
+      '/vendor/html2canvas.min.js',
+      './vendor/html2canvas.min.js',
+      'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js',
+      'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'
+    ];
+    let ok=false;
+    for (const u of candidates){ try{ await loadScript(u); ok=!!window.html2canvas; if(ok) break; }catch{} }
+    if (!ok) throw new Error('Could not load html2canvas (required)');
   })();
-
   return _libsPromise;
 }
 
