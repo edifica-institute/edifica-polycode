@@ -6,7 +6,6 @@ import fs from "fs/promises";
 import fssync from "fs";
 import path from "path";
 import os from "os";
-import rimraf from "rimraf";
 import multer from "multer";
 import cors from "cors";
 import { spawn as cpSpawn } from "child_process";
@@ -155,7 +154,7 @@ wss.on("connection", (ws, req) => {
   term.onExit(({ exitCode }) => {
     ws.send(JSON.stringify({ type:"exit", code: exitCode }));
     ws.close();
-    setTimeout(() => rimraf.sync(jobDir), 10_000);
+    setTimeout(() => fssync.rmSync(jobDir, { recursive: true, force: true });
     SESSIONS.delete(token);
   });
 
