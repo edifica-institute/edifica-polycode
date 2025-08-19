@@ -73,9 +73,12 @@ export function stopJava() {
 
 // js/lang/java.js
 import { API_BASE, WS_BASE } from '../config.js';
-import { setStatus } from '../core/ui.js';
+import { setStatus, showSpinner } from '../core/ui.js';
 import { getTerm, clearTerm } from '../core/terminal.js';
 import { getCode, clearMarkers, setMarkers, setLanguage, setValue } from '../core/editor.js';
+
+
+
 
 let ws = null;
 
@@ -120,6 +123,7 @@ export function activate(){
 export async function runJava() {
   try {
     setStatus("Compiling…");
+    showSpinner(true);    
     clearMarkers();
     clearTerm();
 
@@ -132,8 +136,10 @@ export async function runJava() {
     });
 
     if (!res.ok) {
+      
       let msg = ""; try { msg = await res.text(); } catch {}
       setStatus(`Compile request failed (${res.status}) ${msg ? "– " + msg : ""}`, "err");
+       showSpinner(false); 
       return;
     }
 
@@ -142,6 +148,7 @@ export async function runJava() {
     if (!data.ok) {
       setMarkers(data.diagnostics || []);
       setStatus("Compilation failed – see red underlines.", "err");
+       showSpinner(false); 
       return;
     }
 
@@ -157,6 +164,7 @@ export async function runJava() {
       if (msg.type === "exit") {
         term.write(`\r\n\nProcess exited with code ${msg.code}\r\n`);
         setStatus("Execution Success! (Exit Code - " + msg.code + ")", msg.code === 0 ? "ok" : "err");
+         showSpinner(false); 
         ws = null;
       }
     };
@@ -165,6 +173,7 @@ export async function runJava() {
 
   } catch (err) {
     setStatus("Network error – cannot reach compiler backend.", "err");
+     showSpinner(false); 
     console.error(err);
   }
 }
@@ -172,5 +181,6 @@ export async function runJava() {
 export function stopJava() {
   if (ws) { try { ws.close(); } catch(e){} ws = null; }
   setStatus("Stopped.","err");
+   showSpinner(false); 
 }
 
