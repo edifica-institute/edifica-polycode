@@ -365,6 +365,23 @@ export async function notifyTeacher({ imageUrl, codeUrl, student, lang }) {
 
 
 
+// frontend/js/core/ui.js
+export function clearPreview(message = 'Output cleared.') {
+  const preview = document.getElementById('preview');
+  if (!preview) return;
+  preview.style.display = 'block';
+  preview.srcdoc = `<!DOCTYPE html><html><body style="font-family:system-ui;background:#0b1220;color:#e5e7eb;margin:20px">${message}</body></html>`;
+}
+
+export function clearSqlOutput(message = 'Output cleared.') {
+  const el = document.getElementById('sqlout');
+  if (!el) return;
+  el.style.display = 'block';
+  el.textContent = message;
+}
+
+
+
 // --- Simple text wrapping helpers (monospace-ish) ----------------------------
 function wrapLines(ctx, text, maxWidth) {
   const words = String(text).replace(/\r\n/g, '\n').split(/\s+/);
