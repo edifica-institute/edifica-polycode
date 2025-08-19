@@ -122,6 +122,83 @@ import * as javaLang from './lang/java.js';   // ← namespace import
 let current = 'java';
 let htmlMod = null;
 
+
+
+import {
+  setStatus, initSplitter, captureAreaAsBlob, copyTextToClipboard, openWhatsApp, uploadSubmission
+} from './core/ui.js';
+// ...rest of your imports
+
+// Inside DOMContentLoaded
+document.getElementById('sendBtn')?.addEventListener('click', sendToWhatsApp);
+
+async function sendToWhatsApp(){
+  try {
+    setStatus("Preparing submission…");
+    // 1) Capture screenshot of the whole workspace
+    const screenshotBlob = await captureAreaAsBlob();
+
+    // 2) Grab code text from Monaco
+    const codeText = monaco.editor.getModels()[0].getValue();
+    const lang = (document.getElementById('langSel')?.value || 'java').toUpperCase();
+
+    // 3) Optional: ask for student name once, remember in localStorage
+    const key = 'polycode_student';
+    let student = localStorage.getItem(key) || '';
+    if (!student) {
+      student = prompt("Enter your name / roll:", "") || '';
+      if (student) localStorage.setItem(key, student);
+    }
+
+    // 4) Upload to R2 via your Pages Function
+    const { imageUrl, codeUrl } = await uploadSubmission({ screenshotBlob, codeText, student, lang });
+
+    // 5) Copy code to clipboard (handy for pasting)
+    try { await copyTextToClipboard(codeText); } catch {}
+
+    // 6) Open WhatsApp with links
+    const msg = `PolyCode submission
+Student: ${student || '(not provided)'}
+Language: ${lang}
+Code: ${codeUrl}
+Screenshot: ${imageUrl}
+(Your code is also on the clipboard.)`;
+
+    openWhatsApp("919836313636", msg); // <-- teacher number
+    setStatus("Ready.", "ok");
+  } catch (e) {
+    console.error(e);
+    setStatus("Could not prepare submission.", "err");
+    alert("Upload failed. Please try again, or attach the downloaded screenshot and paste code manually.");
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 window.addEventListener('DOMContentLoaded', async () => {
   await initMonaco();
   initTerminal();
