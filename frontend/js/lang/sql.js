@@ -254,9 +254,10 @@ export function activate(){
   setLanguage('sql');
   setValue(
 `-- Example:
-CREATE TABLE students(id INT PRIMARY KEY, name TEXT, marks INT);
-INSERT INTO students(name, marks) VALUES
-  ('Asha', 92), ('Ravi', 76), ('Meera', 84);
+CREATE TABLE students(id INT PRIMARY KEY, name VARCHAR(100), marks INT);
+INSERT INTO students VALUES (15,'Asha', 92);
+INSERT INTO students VALUES  (20, 'Ravi', 76);
+INSERT INTO students VALUES  (23, 'Meera', 84);
 
 -- Try your own queries:
 SELECT * FROM students;`
