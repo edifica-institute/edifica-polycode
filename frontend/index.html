@@ -5,37 +5,14 @@
   <title>Java Online Compiler</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
 
-  <!-- xterm.js MUST load before we use Terminal -->
+  <!-- xterm (CSS + JS) -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
   <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
 
-  <!-- Monaco loader (load once) -->
+  <!-- Monaco AMD loader (load once) -->
   <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
 
-  <style>
-    :root { --bg:#0f172a; --card:#111827; --text:#e5e7eb; --muted:#9ca3af; --accent:#22c55e; --danger:#ef4444; }
-    * { box-sizing: border-box; }
-    body { margin:0; background:var(--bg); color:var(--text); font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial; }
-    header { padding:14px 18px; border-bottom:1px solid #1f2937; display:flex; gap:12px; align-items:center; }
-    header h1 { margin:0; font-size:18px; font-weight:600; }
-    .badge { font-size:12px; padding:2px 8px; border-radius:999px; border:1px solid #334155; color:var(--muted); }
-    .wrap { display:grid; grid-template-columns: 1fr 420px; gap:12px; padding:12px; }
-    .panel { background:var(--card); border:1px solid #1f2937; border-radius:10px; overflow:hidden; }
-    .toolbar { display:flex; gap:8px; align-items:center; padding:10px; border-bottom:1px solid #1f2937; }
-    .toolbar .spacer { flex:1; }
-    button { background:#1f2937; color:var(--text); border:1px solid #374151; padding:8px 12px; border-radius:8px; cursor:pointer; }
-    button:hover { border-color:#4b5563; }
-    button.primary { background:#10b98122; border-color:#10b98166; }
-    button.danger { background:#ef444422; border-color:#ef444455; }
-    #editor { height: 72vh; }
-    #term { height: calc(72vh - 42px); padding:8px; }
-    .status { padding:8px 10px; font-size:13px; border-bottom:1px solid #1f2937; display:flex; gap:10px; align-items:center; }
-    .status.ok { color:var(--accent); }
-    .status.err { color:var(--danger); }
-    .small { color:var(--muted); font-size:12px; }
-    .note { padding:8px 10px; border-top:1px solid #1f2937; color:#cbd5e1; font-size:12px; }
-    @media (max-width: 980px){ .wrap{ grid-template-columns: 1fr; } #editor{ height:50vh; } #term{ height:40vh; } }
-  </style>
+  <link rel="stylesheet" href="./css/app.css" />
 </head>
 <body>
   <header>
@@ -44,7 +21,7 @@
   </header>
 
   <div class="wrap">
-    <!-- Editor panel -->
+    <!-- Editor -->
     <section class="panel">
       <div class="toolbar">
         <button id="runBtn" class="primary">▶ Run</button>
@@ -57,7 +34,7 @@
       <div class="note">Tip: Use <kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+<kbd>Enter</kbd> to Run</div>
     </section>
 
-    <!-- Console panel -->
+    <!-- Console -->
     <section class="panel">
       <div id="status" class="status">Ready.</div>
       <div id="term"></div>
@@ -65,152 +42,7 @@
     </section>
   </div>
 
-  <script>
-    // ======== CONFIG ========
-    // Local dev: point to your backend (ensure it's running).
-    // Production (same origin): set both to "".
-    const API_BASE = ""; // same origin through Pages Function
-const WS_BASE  = ""; // same origin through Pages Function
-
-    // ======== Terminal (global) ========
-    let term = null, ws = null;
-
-    // ======== Monaco boot (load once) ========
-    const sample = `// Simple Java program
-import java.io.*;
-import java.util.*;
-
-public class Main {
-  public static void main(String[] args) throws Exception {
-    Scanner sc = new Scanner(System.in);
-    System.out.print("Enter a number: ");
-    int n = sc.nextInt();
-
-    // File I/O inside sandbox
-    try (PrintWriter pw = new PrintWriter(new FileWriter("hello.txt"))) {
-      pw.println("Square = " + (n*n));
-    }
-
-    System.out.println("Wrote hello.txt");
-    System.out.println("Square = " + (n*n));
-  }
-}
-`;
-
-    let editor, model;
-    require.config({ paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs' }});
-    require(['vs/editor/editor.main'], function () {
-      monaco.editor.defineTheme("plunkyDark", {
-        base: "vs-dark", inherit: true,
-        rules: [
-          { token: "keyword", foreground: "C586C0", fontStyle:"bold" },
-          { token: "string", foreground: "CE9178" },
-          { token: "number", foreground: "B5CEA8" },
-          { token: "type", foreground: "4EC9B0" },
-          { token: "comment", foreground: "6A9955", fontStyle:"italic" }
-        ],
-        colors: { "editor.background": "#0b1220" }
-      });
-      model = monaco.editor.createModel(sample, "java", monaco.Uri.parse("inmemory://model/Main.java"));
-      editor = monaco.editor.create(document.getElementById('editor'), {
-        model, theme: "plunkyDark", automaticLayout: true, fontSize: 14, minimap: { enabled: false }
-      });
-      editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => run());
-    });
-
-    // ======== DOM ready: init terminal ========
-    window.addEventListener("DOMContentLoaded", () => {
-      term = new Terminal({ convertEol: true, fontSize: 14 });
-      term.open(document.getElementById('term'));
-      document.getElementById('runBtn').onclick = run;
-      document.getElementById('stopBtn').onclick = stopRun;
-    });
-
-    function setStatus(text, kind="") {
-      const el = document.getElementById('status');
-      el.textContent = text;
-      el.className = "status " + (kind || "");
-    }
-
-    function clearMarkers() {
-      if (!model) return;
-      monaco.editor.setModelMarkers(model, "javac", []);
-    }
-    function setMarkers(diags) {
-      if (!model) return;
-      const markers = (diags || []).map(d => ({
-        message: d.message,
-        startLineNumber: d.line || 1,
-        startColumn: d.column || 1,
-        endLineNumber: d.line || 1,
-        endColumn: (d.column || 1) + 1,
-        severity: d.severity === "warning"
-          ? monaco.MarkerSeverity.Warning
-          : monaco.MarkerSeverity.Error
-      }));
-      monaco.editor.setModelMarkers(model, "javac", markers);
-      if (markers.length) {
-        editor.revealLineInCenter(markers[0].startLineNumber);
-        editor.setPosition({ lineNumber: markers[0].startLineNumber, column: markers[0].startColumn });
-      }
-    }
-
-    async function run() {
-      try {
-        setStatus("Compiling…");
-        clearMarkers();
-        term.clear();
-
-        const files = [{ path: "Main.java", content: editor.getValue() }];
-
-        const res = await fetch(API_BASE + "/api/java/prepare", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ mainClass: "Main", files })
-});
-
-if (!res.ok) {
-  let msg = "";
-  try { msg = await res.text(); } catch {}
-  setStatus(`Compile request failed (${res.status}) ${msg ? "– " + msg : ""}`, "err");
-  return;
-}
-
-        const data = await res.json();
-
-        if (!data.ok) {
-          setMarkers(data.diagnostics || []);
-          setStatus("Compilation failed – see red underlines.", "err");
-          if (data.compileLog) term.write(data.compileLog);
-          return;
-        }
-
-        setStatus("Running (interactive)…", "ok");
-
-        // If same-origin in prod, you can also do: location.origin.replace("http","ws")
-        ws = new WebSocket(WS_BASE + "/term?token=" + encodeURIComponent(data.token));
-        ws.onmessage = (e) => {
-          const msg = JSON.parse(e.data);
-          if (msg.type === "stdout") term.write(msg.data);
-          if (msg.type === "exit") {
-            term.write(`\r\n\nProcess exited with code ${msg.code}\r\n`);
-            setStatus("Finished (exit " + msg.code + ")", msg.code === 0 ? "ok" : "err");
-            ws = null;
-          }
-        };
-        ws.onclose = () => { ws = null; };
-        term.onData(d => { if (ws) ws.send(JSON.stringify({ type:"stdin", data:d })) });
-
-      } catch (err) {
-        setStatus("Network error – cannot reach compiler backend.", "err");
-        console.error(err);
-      }
-    }
-
-    function stopRun() {
-      if (ws) { try { ws.close(); } catch(e){} ws = null; }
-      setStatus("Stopped.", "err");
-    }
-  </script>
+  <!-- Your app modules -->
+  <script type="module" src="./js/main.js"></script>
 </body>
 </html>
