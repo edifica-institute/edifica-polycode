@@ -11,6 +11,8 @@ import multer from "multer";
 import cors from "cors";
 import { spawn as cpSpawn } from "child_process";
 
+const USE_DOCKER = process.env.SANDBOX !== "local"; // "local" on Render
+
 const app = express();                         // <-- create app first
 app.use(cors());                               // <-- then use CORS
 app.use(express.json({ limit: "2mb" }));
