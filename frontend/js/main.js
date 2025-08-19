@@ -272,7 +272,8 @@ import { initMonaco, setLanguage, setValue } from './core/editor.js';
 import { initTerminal } from './core/terminal.js';
 import {
   setStatus, initSplitter, fitLayoutHeight, captureAreaAsBlob,
-  copyTextToClipboard, openWhatsApp, uploadSubmission
+  copyTextToClipboard, openWhatsApp, uploadSubmission,  captureSystemScreenshot,
+  shareScreenshotToWhatsApp
 } from './core/ui.js';
 import * as javaLang from './lang/java.js';
 
@@ -292,6 +293,34 @@ window.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('term')?.classList.add('hidden');
 
 
+  document.getElementById('captureSendBtn')?.addEventListener('click', sendSystemScreenshot);
+
+async function sendSystemScreenshot(){
+  try {
+    setStatus('Capturing screen…');
+    const blob = await captureSystemScreenshot();
+
+    const langSel = document.getElementById('langSel');
+    const lang = (langSel?.value || 'java').toUpperCase();
+    const codeText = monaco.editor.getModels()[0].getValue();
+
+    // Student name (remembered)
+    const key = 'polycode_student';
+    let student = localStorage.getItem(key) || '';
+    if (!student) {
+      student = prompt('Enter your name / roll:', '') || '';
+      if (student) localStorage.setItem(key, student);
+    }
+
+    setStatus('Preparing WhatsApp message…');
+    await shareScreenshotToWhatsApp({ blob, codeText, student, lang });
+    setStatus('Ready.', 'ok');
+  } catch (e) {
+    console.error(e);
+    setStatus('Capture cancelled or failed.', 'err');
+    alert('Could not capture the screen. You can still attach a screenshot manually in WhatsApp Web.');
+  }
+}
   
   // Wire buttons
   document.getElementById('runBtn')?.addEventListener('click', run);
