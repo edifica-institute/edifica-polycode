@@ -143,4 +143,15 @@ select{ background:#0b1220; color:#e5e7eb; border:1px solid #334155; padding:8px
 
 /* frontend/css/app.css */
 #term .xterm-screen, #term .xterm-helpers { cursor: default !important; }
+/* Hide xterm's scroll bar but keep scrolling with the wheel/keys */
+#term .xterm-viewport{
+  scrollbar-width: none;         /* Firefox */
+  -ms-overflow-style: none;      /* IE/Edge legacy */
+}
+#term .xterm-viewport::-webkit-scrollbar{ /* Chrome/Safari */
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
+}
+
 
