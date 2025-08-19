@@ -109,7 +109,7 @@ select{ background:#0b1220; color:#e5e7eb; border:1px solid #334155; padding:8px
 :root{
   --outw: 560px;    /* right pane width */
   --handle: 8px;    /* splitter thickness */
-  --panelH: 86vh;   /* editor/output height */
+  --panelH: 120vh;   /* editor/output height */
 }
 
 .wrap{
