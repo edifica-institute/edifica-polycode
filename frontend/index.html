@@ -164,12 +164,17 @@ public class Main {
         const files = [{ path: "Main.java", content: editor.getValue() }];
 
         const res = await fetch(API_BASE + "/api/java/prepare", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ mainClass: "Main", files })
-        });
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ mainClass: "Main", files })
+});
 
-        if (!res.ok) { setStatus("Compile request failed (" + res.status + ")", "err"); return; }
+if (!res.ok) {
+  let msg = "";
+  try { msg = await res.text(); } catch {}
+  setStatus(`Compile request failed (${res.status}) ${msg ? "– " + msg : ""}`, "err");
+  return;
+}
 
         const data = await res.json();
 
