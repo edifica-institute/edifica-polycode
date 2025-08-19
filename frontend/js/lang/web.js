@@ -39,7 +39,13 @@ function ensureEditors(){
   });
 
   cssEd  = monaco.editor.create(document.getElementById('cssEd'), {
-    value: `/* CSS */\nbody{font-family:system-ui;margin:24px;background:#0b1220;color:#e5e7eb}\nh2{color:#93c5fd}`,
+    value: `/* CSS */\nbody
+    {
+    font-family:system-ui;
+    margin:24px;
+    background:#0b1220;
+    color:#e5e7eb
+    }\nh2{color:#93c5fd}`,
     language: 'css',
     theme: 'plunkyDark',
     automaticLayout: true,
@@ -48,7 +54,8 @@ function ensureEditors(){
   });
 
   jsEd   = monaco.editor.create(document.getElementById('jsEd'), {
-    value: `// JS\nconsole.log("JS running…");\ndocument.body.insertAdjacentHTML('beforeend','<p>JS ✅</p>');`,
+    value: `// JS\nconsole.log("JS running…");\ndocument.body.insertAdjacentHTML(
+    'beforeend','<p>JS ✅</p>');`,
     language: 'javascript',
     theme: 'plunkyDark',
     automaticLayout: true,
