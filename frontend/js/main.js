@@ -278,7 +278,7 @@ import * as javaLang from './lang/java.js';
 
 let current = 'java';
 let htmlMod = null;
-
+window.addEventListener('resize', fitLayoutHeight);
 window.addEventListener('DOMContentLoaded', async () => {
   // Init once
   await initMonaco();
