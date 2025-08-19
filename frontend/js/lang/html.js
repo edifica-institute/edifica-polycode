@@ -1,4 +1,4 @@
-n// js/lang/html.js
+// js/lang/html.js
 import { setStatus } from '../core/ui.js';
 import { setLanguage, setValue, getValue } from '../core/editor.js';
 
