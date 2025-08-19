@@ -106,3 +106,35 @@ select{ background:#0b1220; color:#e5e7eb; border:1px solid #334155; padding:8px
 }
 
 
+:root{
+  --outw: 560px;    /* right pane width */
+  --handle: 8px;    /* splitter thickness */
+  --panelH: 86vh;   /* editor/output height */
+}
+
+.wrap{
+  display:grid;
+  grid-template-columns: 1fr var(--handle) var(--outw);
+  gap:12px; padding:12px;
+  align-items: stretch;
+}
+
+#splitter{
+  grid-column:2;
+  grid-row:1;
+  height: var(--panelH);
+  cursor: col-resize;
+  background:#243244;
+  border-radius:8px;
+  opacity:.85;
+  position: relative;
+  z-index: 10;
+  touch-action: none; /* enables pointer drag on touch */
+}
+
+#editor  { height: var(--panelH) }
+#term    { height: calc(var(--panelH) - 42px); padding:8px }
+#preview { height: calc(var(--panelH) - 42px); width:100%; border:0; background:#0b1220 }
+
+
+
