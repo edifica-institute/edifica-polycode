@@ -5,7 +5,7 @@ import { initMonaco, setLanguage, setValue, clearMarkers, setMarkers } from './c
 import { initTerminal, clearTerminal  } from './core/terminal.js';
 import {
   setStatus, initSplitter, fitLayoutHeight,
-  uploadSubmission, copyTextToClipboard, openWhatsApp
+  uploadSubmission, copyTextToClipboard, openWhatsApp, clearPreview, clearSqlOutput
 } from './core/ui.js';
 import * as javaLang from './lang/java.js';
 import * as sqlLang  from './lang/sql.js';
@@ -23,18 +23,30 @@ let htmlMod = null;
 
 
 
+function clearByLanguage(full = false) {
+  if (current === 'java') {
+    clearTerminal(full);                  // xterm
+  } else if (current === 'html' || current === 'web') {
+    clearPreview('Output cleared.');      // right iframe
+  } else if (current === 'sql') {
+    clearSqlOutput('Output cleared.');    // table area
+  }
+}
 
+let autoClearTimer = null;
+let clearedAfterEdit = false;
 
 function scheduleAutoClear() {
   if (clearedAfterEdit) return;                 // only once until re-armed
   clearTimeout(autoClearTimer);
   autoClearTimer = setTimeout(() => {
-    clearTerminal();                             // soft clear
+    clearByLanguage(false);                     // soft clear
     clearedAfterEdit = true;
     setStatus('Output cleared (code changed).');
   }, 700);
 }
 function resetEditClearArming() { clearedAfterEdit = false; }
+
 
 
 window.addEventListener('DOMContentLoaded', async () => {
@@ -187,7 +199,8 @@ async function loadHtmlModule() {
 
 async function switchLang(lang) {
   current = lang;
-
+clearByLanguage(true);
+  resetEditClearArming(); 
   // Grab UI bits
   const termEl  = document.getElementById('term');
   const preview = document.getElementById('preview');
@@ -273,8 +286,8 @@ async function switchLang(lang) {
 
 // ---------- Run / Stop -------------------------------------------------------
 async function run() {
-  clearTerminal();          // start fresh for this run
-  resetEditClearArming();   // edits after this run will clear once
+   clearByLanguage(false);    // start from a blank output for this run
+  resetEditClearArming();    // edits after this run will clear once
   
   if (current === 'html') {
     if (!htmlMod) htmlMod = await loadHtmlModule();
