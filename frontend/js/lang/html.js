@@ -1,5 +1,5 @@
 // js/lang/html.js
-import { setStatus } from '../core/ui.js';
+import { setStatus, showSpinner } from '../core/ui.js';
 import { setLanguage, setValue, getValue } from '../core/editor.js';
 
 const SAMPLE_HTML = `<!DOCTYPE html>
@@ -40,13 +40,15 @@ export async function run(){
   const preview = document.getElementById('preview');
   if (!preview) return;
   setStatus("Rendering HTML…","ok");
-
+ showSpinner(true);      
+  
   const code = getValue();
   const html = /<html[\s\S]*<\/html>/i.test(code)
     ? code
     : `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Preview</title></head><body>${code}</body></html>`;
   preview.srcdoc = html;
   setStatus("Execution Success! (Exit Code - 0)","ok");
+    setTimeout(()=>showSpinner(false), 150);
 }
 
-export function stop(){ setStatus("Stopped.","err"); }
+export function stop(){ setStatus("Stopped.","err");  showSpinner(false);}
