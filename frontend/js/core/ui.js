@@ -77,35 +77,38 @@ export function showSpinner(on) {
 }
 
 // ---- Draggable splitter (width) ---------------------------------------------
-export function initSplitter() {
-  const wrap = document.querySelector(".wrap");
-  const handle = document.getElementById("splitter");
+export function initSplitter(){
+  const wrap = document.querySelector('.wrap');
+  const handle = document.getElementById('splitter');
   if (!wrap || !handle) return;
 
-  let dragging = false,
-    startX = 0,
-    startW = 0;
+  let dragging = false, startX = 0, startW = 0;
 
-  handle.addEventListener("mousedown", (e) => {
+  const start = (clientX) => {
     dragging = true;
-    startX = e.clientX;
-    startW =
-      parseFloat(getComputedStyle(wrap).getPropertyValue("--outw")) || 520;
-    document.body.style.userSelect = "none";
-  });
-
-  window.addEventListener("mousemove", (e) => {
+    startX = clientX;
+    const css = getComputedStyle(wrap);
+    const w = css.getPropertyValue('--outw').trim();   // e.g. "520px"
+    startW = parseFloat(w) || 520;
+    document.body.style.userSelect = 'none';
+  };
+  const move = (clientX) => {
     if (!dragging) return;
-    const dx = e.clientX - startX;
+    const dx = clientX - startX;
     const newW = Math.max(360, startW + dx);
-    wrap.style.setProperty("--outw", newW + "px");
-  });
-
-  window.addEventListener("mouseup", () => {
+    wrap.style.setProperty('--outw', `${newW}px`);
+  };
+  const stop = () => {
     dragging = false;
-    document.body.style.userSelect = "";
-  });
+    document.body.style.userSelect = '';
+  };
+
+  // Pointer events (mouse + touch in one)
+  handle.addEventListener('pointerdown', (e)=>{ e.preventDefault(); handle.setPointerCapture(e.pointerId); start(e.clientX); });
+  window.addEventListener('pointermove',  (e)=> move(e.clientX));
+  window.addEventListener('pointerup',    ()=> stop());
 }
+
 
 // ---- Screenshot helpers (works with HTML or Terminal visible) --------------
 export async function captureAreaAsBlob() {
