@@ -5,7 +5,7 @@ export function initTerminal() {
 term = new Terminal({
   convertEol: true,
   cursorBlink: true,
-  cursorStyle: 'bar',
+  cursorStyle: 'underline',
   cursorWidth: 1,
   fontSize: 14,
   allowTransparency: true,
@@ -16,6 +16,7 @@ term = new Terminal({
     selection: '#334155aa',
   },
 });
+
 
 
   term.open(document.getElementById('term'));
