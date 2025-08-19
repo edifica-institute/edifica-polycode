@@ -102,7 +102,6 @@ function stop(){
   return stopJava();
 }
 
-*/
 
 
 
@@ -241,5 +240,148 @@ window.addEventListener('DOMContentLoaded', async () => {
   initSplitter();          // ← make sure this line exists
   setStatus("Ready.");
   // ...
+}); */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//new
+
+// js/main.js
+import { initMonaco, setLanguage, setValue } from './core/editor.js';
+import { initTerminal } from './core/terminal.js';
+import {
+  setStatus, initSplitter, captureAreaAsBlob,
+  copyTextToClipboard, openWhatsApp, uploadSubmission
+} from './core/ui.js';
+import * as javaLang from './lang/java.js';
+
+let current = 'java';
+let htmlMod = null;
+
+window.addEventListener('DOMContentLoaded', async () => {
+  // Init once
+  await initMonaco();
+  initTerminal();
+  initSplitter();
+  setStatus("Ready.");
+
+  // Wire buttons
+  document.getElementById('runBtn')?.addEventListener('click', run);
+  document.getElementById('stopBtn')?.addEventListener('click', stop);
+  document.getElementById('sendBtn')?.addEventListener('click', sendToWhatsApp);
+
+  // Keyboard shortcut from editor
+  window.addEventListener('polycode:run', run);
+
+  // Language switcher
+  const sel = document.getElementById('langSel');
+  if (sel) sel.addEventListener('change', () => switchLang(sel.value));
 });
+
+async function loadHtmlModule() {
+  const url = new URL('./lang/html.js', import.meta.url);
+  return import(url.href);
+}
+
+async function switchLang(lang){
+  current = lang;
+  const term    = document.getElementById('term');
+  const preview = document.getElementById('preview');
+  const hint    = document.getElementById('hint');
+
+  if (lang === 'html') {
+    if (term) term.style.display = 'none';
+    if (preview) preview.style.display = 'block';
+    try {
+      if (!htmlMod) htmlMod = await loadHtmlModule();
+      htmlMod.activate();
+      if (hint) hint.textContent = "HTML preview is shown on the right.";
+    } catch (e) {
+      console.error('Failed to load html module:', e);
+      try {
+        setLanguage('html');
+        setValue(`<!doctype html><html><head><meta charset="utf-8"><title>Preview</title></head><body><h2>Hello, HTML!</h2></body></html>`);
+      } catch {}
+      if (preview) preview.srcdoc =
+        `<!doctype html><html><body style="font-family:system-ui;background:#0b1220;color:#e5e7eb;margin:20px">
+          HTML module failed to load. A fallback preview is shown.
+         </body></html>`;
+      if (hint) hint.textContent = "HTML preview is shown on the right.";
+      setStatus("Ready.");
+    }
+    return;
+  }
+
+  // Back to Java
+  javaLang.activate();
+}
+
+async function run(){
+  if (current === 'html') {
+    if (!htmlMod) htmlMod = await loadHtmlModule();
+    return htmlMod.run();
+  }
+  return javaLang.runJava();
+}
+
+function stop(){
+  if (current === 'html') { try { htmlMod?.stop?.(); } catch {} return; }
+  return javaLang.stopJava();
+}
+
+async function sendToWhatsApp(){
+  try {
+    setStatus("Preparing submission…");
+    const screenshotBlob = await captureAreaAsBlob();
+    const codeText = monaco.editor.getModels()[0].getValue();
+    const lang = (document.getElementById('langSel')?.value || 'java').toUpperCase();
+
+    // Ask student name once
+    const key = 'polycode_student';
+    let student = localStorage.getItem(key) || '';
+    if (!student) {
+      student = prompt("Enter your name / roll:", "") || '';
+      if (student) localStorage.setItem(key, student);
+    }
+
+    const { imageUrl, codeUrl } = await uploadSubmission({ screenshotBlob, codeText, student, lang });
+    try { await copyTextToClipboard(codeText); } catch {}
+
+    const msg = `PolyCode submission
+Student: ${student || '(not provided)'}
+Language: ${lang}
+Code: ${codeUrl}
+Screenshot: ${imageUrl}
+(Your code is also on the clipboard.)`;
+
+    openWhatsApp("919836313636", msg);
+    setStatus("Ready.", "ok");
+  } catch (e) {
+    console.error(e);
+    setStatus("Could not prepare submission.", "err");
+    alert("Upload failed. Please try again, or attach the downloaded screenshot and paste code manually.");
+  }
+}
+
 
