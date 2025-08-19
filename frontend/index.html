@@ -1,443 +1,216 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<title>Edifica Polycode</title>
-<meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta charset="UTF-8" />
+  <title>Java Online Compiler</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
 
-<!-- xterm -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
-<script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+  <!-- xterm.js MUST load before we use Terminal -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
+  <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
 
-  <!-- Monaco AMD loader (load AFTER the shield) -->
-<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
+  <!-- Monaco loader (load once) -->
+  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
 
-  
-<!-- Prevent sql.js from registering via AMD (avoids Monaco duplicate-define error) -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js"></script>
-
-
-
-
-<style>
-  :root{
-    --bg:#0f172a; --card:#111827; --text:#e5e7eb; --muted:#9ca3af; --accent:#22c55e; --danger:#ef4444;
-    --outw: 720px;        /* Output panel width (drag to resize) */
-    --handle: 6px;        /* Splitter thickness */
-  }
-  *{ box-sizing:border-box }
-  body{ margin:0; background:var(--bg); color:var(--text); font-family:ui-sans-serif,system-ui,"Segoe UI",Roboto,Arial }
-
-  header{ padding:10px 14px; border-bottom:1px solid #1f2937; display:flex; gap:12px; align-items:center }
-  #logo{ width:34px; height:34px; border-radius:999px; border:1px solid #334155; object-fit:cover }
-  h1{ margin:0; font-size:18px; font-weight:600 }
-  .badge{ font-size:12px; padding:2px 8px; border-radius:999px; border:1px solid #334155; color:var(--muted) }
-
-  /* 3-column grid: editor | handle | output */
-  .wrap{ display:grid; grid-template-columns: 1fr var(--handle) var(--outw); gap:12px; padding:12px; }
-  #splitter{ grid-column:2; cursor:col-resize; background:#243244; border-radius:8px; opacity:.7; }
-  .panel{ background:var(--card); border:1px solid #1f2937; border-radius:10px; overflow:hidden }
-  .toolbar{ display:flex; gap:8px; align-items:center; padding:10px; border-bottom:1px solid #1f2937 }
-  .toolbar .spacer{ flex:1 }
-  button{ background:#1f2937; color:var(--text); border:1px solid #374151; padding:8px 12px; border-radius:10px; cursor:pointer; transition:transform .06s ease, box-shadow .2s ease }
-  button:hover{ border-color:#4b5563; transform:translateY(-1px); box-shadow:0 6px 16px rgba(0,0,0,.25) }
-  button.primary{ background:#10b98122; border-color:#10b98166 }
-  button.danger{ background:#ef444422; border-color:#ef444455 }
-  button.send{ background:linear-gradient(135deg,#06b6d4 0%, #10b981 50%, #22c55e 100%); border:none; color:white; box-shadow:0 6px 20px rgba(16,185,129,.35); }
-  select{ background:#0b1220; color:#e5e7eb; border:1px solid #334155; padding:8px 12px; border-radius:10px; min-width: 260px; } /* longer dropdown */
-
-  #singleEditor{ display:block }
-  #editor{ height:72vh }
-
-  /* WEB: HTML+CSS+JS editors */
-  #webEditors{ display:none; grid-template-columns: 1fr 1fr 1fr; gap:8px; padding:10px }
-  #htmlEd,#cssEd,#jsEd{ height:68vh; border:1px solid #1f2937; border-radius:8px; overflow:hidden }
-
-  /* Output area */
-  #term, #preview, #sqlout{ height: calc(72vh - 42px); }
-  #term{ padding:8px }
-  #preview{ width:100%; border:0; background:#0b1220 }
-  #sqlout{ padding:8px; overflow:auto }
-  #sqlout table{ border-collapse:collapse; width:100% }
-  #sqlout th,#sqlout td{ border:1px solid #334155; padding:6px 8px; text-align:left; font-size:13px }
-  #sqlout th{ background:#0b1220 }
-
-  /* Normal arrow cursor in preview/SQL; terminal shows its own caret */
-  #preview, #sqlout { cursor: default !important; }
-
-  .status{ padding:8px 10px; font-size:13px; border-bottom:1px solid #1f2937; position:relative; display:flex; align-items:center; gap:8px }
-  .status.ok{ color:var(--accent) }
-  .status.err{ color:var(--danger) }
-  .note{ padding:8px 10px; border-top:1px solid #1f2937; color:#cbd5e1; font-size:12px }
-
-  /* compile spinner */
-  #spinner{ margin-left:auto; display:none }
-  .dot{ width:6px; height:6px; border-radius:999px; background:#22c55e; display:inline-block; margin-left:6px; animation:b .9s infinite ease-in-out }
-  .dot:nth-child(2){ animation-delay:.15s } .dot:nth-child(3){ animation-delay:.3s }
-  @keyframes b{ 0%,80%,100%{ transform:scale(0.6); opacity:.4 } 40%{ transform:scale(1); opacity:1 } }
-
-  @media (max-width:1100px){ .wrap{ grid-template-columns: 1fr var(--handle) min(90vw, var(--outw)) } }
-  @media (max-width:980px){ .wrap{ grid-template-columns:1fr; } #splitter{ display:none } #editor{ height:50vh } #term,#preview,#sqlout{ height:40vh } #webEditors{ grid-template-columns:1fr; } #htmlEd,#cssEd,#jsEd{ height:42vh } }
-</style>
+  <style>
+    :root { --bg:#0f172a; --card:#111827; --text:#e5e7eb; --muted:#9ca3af; --accent:#22c55e; --danger:#ef4444; }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--text); font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial; }
+    header { padding:14px 18px; border-bottom:1px solid #1f2937; display:flex; gap:12px; align-items:center; }
+    header h1 { margin:0; font-size:18px; font-weight:600; }
+    .badge { font-size:12px; padding:2px 8px; border-radius:999px; border:1px solid #334155; color:var(--muted); }
+    .wrap { display:grid; grid-template-columns: 1fr 420px; gap:12px; padding:12px; }
+    .panel { background:var(--card); border:1px solid #1f2937; border-radius:10px; overflow:hidden; }
+    .toolbar { display:flex; gap:8px; align-items:center; padding:10px; border-bottom:1px solid #1f2937; }
+    .toolbar .spacer { flex:1; }
+    button { background:#1f2937; color:var(--text); border:1px solid #374151; padding:8px 12px; border-radius:8px; cursor:pointer; }
+    button:hover { border-color:#4b5563; }
+    button.primary { background:#10b98122; border-color:#10b98166; }
+    button.danger { background:#ef444422; border-color:#ef444455; }
+    #editor { height: 72vh; }
+    #term { height: calc(72vh - 42px); padding:8px; }
+    .status { padding:8px 10px; font-size:13px; border-bottom:1px solid #1f2937; display:flex; gap:10px; align-items:center; }
+    .status.ok { color:var(--accent); }
+    .status.err { color:var(--danger); }
+    .small { color:var(--muted); font-size:12px; }
+    .note { padding:8px 10px; border-top:1px solid #1f2937; color:#cbd5e1; font-size:12px; }
+    @media (max-width: 980px){ .wrap{ grid-template-columns: 1fr; } #editor{ height:50vh; } #term{ height:40vh; } }
+  </style>
 </head>
 <body>
   <header>
-    <img id="logo" src="Logo.png" alt="Edifica logo" />
-    <h1>Edifica Polycode</h1>
-    <span class="badge">Interactive stdin • File I/O (sandbox)</span>
+    <h1>Java Online Compiler</h1>
+    <span class="badge">Interactive stdin • File I/O enabled (sandbox)</span>
   </header>
 
-  <div id="captureArea" class="wrap">
-    <!-- left -->
-    <section class="panel" style="grid-column:1">
+  <div class="wrap">
+    <!-- Editor panel -->
+    <section class="panel">
       <div class="toolbar">
         <button id="runBtn" class="primary">▶ Run</button>
         <button id="stopBtn" class="danger">⏹ Stop</button>
-        <button id="sendBtn" class="send">✉ Send</button>
         <span class="spacer"></span>
-        <label for="langSel" style="font-size:12px;color:#9ca3af">Language:</label>
-        <select id="langSel">
-          <option value="java" selected>Java</option>
-          <option value="web">HTML + CSS + JS</option>
-          <option value="sql">SQL (SQLite)</option>
-          <option value="html">HTML (single)</option>
-        </select>
+        <span class="small">Language:</span>
+        <strong>Java</strong>
       </div>
-
-      <!-- single editor (Java/HTML/SQL) -->
-      <div id="singleEditor"><div id="editor"></div></div>
-
-      <!-- three editors (WEB) -->
-      <div id="webEditors" class="panelless webgrid">
-        <div id="htmlEd"></div>
-        <div id="cssEd"></div>
-        <div id="jsEd"></div>
-      </div>
-
-      <div class="note" id="editNote">Tip: Ctrl/Cmd + Enter to Run</div>
+      <div id="editor"></div>
+      <div class="note">Tip: Use <kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+<kbd>Enter</kbd> to Run</div>
     </section>
 
-    <!-- handle -->
-    <div id="splitter"></div>
-
-    <!-- right -->
-    <section class="panel" style="grid-column:3">
-      <div id="status" class="status">
-        <span id="statusText">Ready.</span>
-        <span id="spinner"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>
-      </div>
+    <!-- Console panel -->
+    <section class="panel">
+      <div id="status" class="status">Ready.</div>
       <div id="term"></div>
-      <iframe id="preview" style="display:none" sandbox="allow-scripts allow-forms allow-modals allow-popups" referrerpolicy="no-referrer"></iframe>
-      <div id="sqlout" style="display:none"></div>
-      <div class="note" id="hint">Type into the console when your program asks for input (e.g., Scanner).</div>
+      <div class="note">Type into the console when your program asks for input (e.g., <code>Scanner</code>).</div>
     </section>
   </div>
 
-<script>
-  // Same-origin: Cloudflare Pages proxy routes /api and /term to backend
-  const API_BASE = "";
-  const WS_BASE  = location.origin.replace(/^http/,'ws');
+  <script>
+    // ======== CONFIG ========
+    // Local dev: point to your backend (ensure it's running).
+    // Production (same origin): set both to "".
+    const API_BASE = ""; // same origin through Pages Function
+const WS_BASE  = ""; // same origin through Pages Function
 
-  // state
-  let ws=null, term=null, lang="java", SQL=null;
-  let editor, model, htmlEd, cssEd, jsEd;
+    // ======== Terminal (global) ========
+    let term = null, ws = null;
 
-  // Samples
-  const samples = {
-    java: `// Simple Java program
-import java.io.*; import java.util.*;
+    // ======== Monaco boot (load once) ========
+    const sample = `// Simple Java program
+import java.io.*;
+import java.util.*;
+
 public class Main {
   public static void main(String[] args) throws Exception {
     Scanner sc = new Scanner(System.in);
     System.out.print("Enter a number: ");
     int n = sc.nextInt();
+
+    // File I/O inside sandbox
     try (PrintWriter pw = new PrintWriter(new FileWriter("hello.txt"))) {
       pw.println("Square = " + (n*n));
     }
+
     System.out.println("Wrote hello.txt");
     System.out.println("Square = " + (n*n));
   }
 }
-`,
-    html: `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Preview</title></head><body><h2>Hello, HTML!</h2></body></html>`,
-    css:  `body{font-family:system-ui;margin:20px;background:#0b1220;color:#e5e7eb}`,
-    js:   `document.body.insertAdjacentHTML('beforeend','<p>JS running ✅</p>');`,
-    sql: `-- Write SQL here. Example:
-CREATE TABLE t(id INTEGER PRIMARY KEY, name TEXT);
-INSERT INTO t(name) VALUES ('Ada'),('Grace'),('Linus');
-SELECT * FROM t;`
-  };
+`;
 
-  // Monaco
-  require.config({ paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs' }});
-  require(['vs/editor/editor.main'], function () {
-    monaco.editor.defineTheme("plunkyDark", {
-      base:"vs-dark", inherit:true,
-      rules:[
-        { token:"keyword", foreground:"C586C0", fontStyle:"bold" },
-        { token:"string",  foreground:"CE9178" },
-        { token:"number",  foreground:"B5CEA8" },
-        { token:"type",    foreground:"4EC9B0" },
-        { token:"comment", foreground:"6A9955", fontStyle:"italic" }
-      ],
-      colors:{ "editor.background":"#0b1220" }
-    });
-
-    // single-editor model
-    model = monaco.editor.createModel(samples.java, "java", monaco.Uri.parse("inmemory://model/Main.java"));
-    editor = monaco.editor.create(document.getElementById('editor'), {
-      model, theme:"plunkyDark", automaticLayout:true, fontSize:14, minimap:{enabled:false}
-    });
-
-    // 3 web editors
-    htmlEd = monaco.editor.create(document.getElementById('htmlEd'), {
-      value:samples.html, language:'html', theme:'plunkyDark', automaticLayout:true, fontSize:14, minimap:{enabled:false}
-    });
-    cssEd = monaco.editor.create(document.getElementById('cssEd'), {
-      value:samples.css, language:'css', theme:'plunkyDark', automaticLayout:true, fontSize:14, minimap:{enabled:false}
-    });
-    jsEd = monaco.editor.create(document.getElementById('jsEd'), {
-      value:samples.js, language:'javascript', theme:'plunkyDark', automaticLayout:true, fontSize:14, minimap:{enabled:false}
-    });
-
-    setEditorsVisible("single"); // default Java uses single editor
-    [editor, htmlEd, cssEd, jsEd].forEach(ed=>{
-      ed.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => run());
-    });
-  });
-
-  // SQL init (async)
-  initSqlJs({ locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${f}` })
-    .then(SQLLib => SQL = SQLLib);
-
-  // Terminal + splitter
-  window.addEventListener("DOMContentLoaded", () => {
-    term = new Terminal({ convertEol: true, fontSize: 14, cursorBlink: true, cursorStyle: 'bar' }); // thin blinking cursor
-    term.open(document.getElementById('term'));
-    document.getElementById('runBtn').onclick = run;
-    document.getElementById('stopBtn').onclick = stopRun;
-    document.getElementById('sendBtn').onclick = sendWhatsApp;
-    document.getElementById('langSel').onchange = onLangChange;
-
-    const wrap = document.querySelector('.wrap');
-    const handle = document.getElementById('splitter');
-    let dragging=false, startX=0, startW=0;
-    handle.addEventListener('mousedown', (e)=>{ dragging=true; startX=e.clientX; startW=parseFloat(getComputedStyle(wrap).getPropertyValue('--outw')); document.body.style.userSelect='none'; });
-    window.addEventListener('mousemove',(e)=>{ if(!dragging) return; const dx = e.clientX - startX; const newW = Math.max(360, startW + dx); wrap.style.setProperty('--outw', newW+'px'); });
-    window.addEventListener('mouseup', ()=>{ dragging=false; document.body.style.userSelect=''; });
-  });
-
-  function setEditorsVisible(mode){
-    document.getElementById('singleEditor').style.display = (mode==="single")?"block":"none";
-    document.getElementById('webEditors').style.display   = (mode==="web")?"grid":"none";
-  }
-
-  function setStatus(text, kind=""){
-    const box = document.getElementById('status');
-    const txt = document.getElementById('statusText');
-    if (txt) txt.textContent = text;
-    if (box) box.className = "status " + (kind || "");
-  }
-  function showSpinner(v){ const s = document.getElementById('spinner'); if (s) s.style.display = v ? 'inline-block' : 'none'; }
-
-  function clearMarkers(){ if(!model) return; monaco.editor.setModelMarkers(model, "diags", []); }
-  function setMarkers(diags){
-    if(!model) return;
-    const markers = (diags||[]).map(d=>({
-      message:d.message, startLineNumber:d.line||1, startColumn:d.column||1,
-      endLineNumber:d.line||1, endColumn:(d.column||1)+1,
-      severity:/warning/i.test(d.severity)?monaco.MarkerSeverity.Warning:monaco.MarkerSeverity.Error
-    }));
-    monaco.editor.setModelMarkers(model,"diags",markers);
-    if(markers.length){ editor.revealLineInCenter(markers[0].startLineNumber); editor.setPosition({ lineNumber:markers[0].startLineNumber, column:markers[0].startColumn }); }
-  }
-
-  function onLangChange(e){
-    lang = e.target.value;
-    const preview = document.getElementById('preview'), hint = document.getElementById('hint');
-    document.getElementById('term').style.display = (lang==="java")?"block":"none";
-    preview.style.display = (lang==="web" || lang==="html")?"block":"none";
-    document.getElementById('sqlout').style.display = (lang==="sql")?"block":"none";
-
-    if(lang==="java"){
-      setEditorsVisible("single");
-      monaco.editor.setModelLanguage(model,"java");
-      editor.setValue(samples.java);
-      hint.textContent = "Type into the console when your program asks for input (e.g., Scanner).";
-    }else if(lang==="html"){
-      setEditorsVisible("single");
-      monaco.editor.setModelLanguage(model,"html");
-      editor.setValue(samples.html);
-      hint.textContent = "HTML preview is shown on the right.";
-    }else if(lang==="web"){
-      setEditorsVisible("web");
-      hint.textContent = "Edit HTML, CSS, JS in three panes. Preview updates on Run.";
-    }else if(lang==="sql"){
-      setEditorsVisible("single");
-      monaco.editor.setModelLanguage(model,"sql");
-      editor.setValue(samples.sql);
-      hint.textContent = "Outputs from SELECT appear as a table.";
-    }
-    setStatus("Ready."); clearMarkers(); term?.clear(); if(ws){ try{ ws.close(); }catch{} ws=null; }
-  }
-
-  async function run(){
-    const preview = document.getElementById('preview');
-    const sqlout  = document.getElementById('sqlout');
-
-    if(lang==="html"){
-      setStatus("Rendering HTML…","ok");
-      preview.srcdoc = editor.getValue();
-      return;
-    }
-
-    if(lang==="web"){
-      setStatus("Rendering HTML+CSS+JS…","ok");
-      const html = htmlEd.getValue(), css = cssEd.getValue(), js = jsEd.getValue();
-      preview.srcdoc = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${css}</style></head><body>${html}<script>${js}<\/script></body></html>`;
-      return;
-    }
-
-    if(lang==="sql"){
-      if(!SQL){ setStatus("Loading SQL engine…","err"); return; }
-      setStatus("Running SQL…","ok");
-      sqlout.innerHTML = "";
-      try{
-        const db = new SQL.Database();
-        const res = db.exec(editor.getValue());
-        if(!res.length){ sqlout.textContent = "Done."; return; }
-        const last = res[res.length-1];
-        const table = document.createElement('table');
-        const thead = document.createElement('thead');
-        const trh = document.createElement('tr');
-        last.columns.forEach(c=>{ const th=document.createElement('th'); th.textContent=c; trh.appendChild(th); });
-        thead.appendChild(trh); table.appendChild(thead);
-        const tb = document.createElement('tbody');
-        last.values.forEach(row=>{
-          const tr=document.createElement('tr');
-          row.forEach(v=>{ const td=document.createElement('td'); td.textContent=(v===null?"NULL":String(v)); tr.appendChild(td); });
-          tb.appendChild(tr);
-        });
-        table.appendChild(tb); sqlout.appendChild(table);
-        setStatus("Finished (SQL)","ok");
-      }catch(e){ setStatus("SQL error","err"); sqlout.textContent = String(e); }
-      return;
-    }
-
-    // Java path (backend)
-    try{
-      setStatus("Compiling…"); showSpinner(true);
-      clearMarkers(); term.clear();
-      const files = [{ path:"Main.java", content: editor.getValue() }];
-
-      const res = await fetch(API_BASE + "/api/java/prepare", {
-        method:"POST", headers:{ "Content-Type":"application/json" },
-        body: JSON.stringify({ mainClass:"Main", files })
+    let editor, model;
+    require.config({ paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs' }});
+    require(['vs/editor/editor.main'], function () {
+      monaco.editor.defineTheme("plunkyDark", {
+        base: "vs-dark", inherit: true,
+        rules: [
+          { token: "keyword", foreground: "C586C0", fontStyle:"bold" },
+          { token: "string", foreground: "CE9178" },
+          { token: "number", foreground: "B5CEA8" },
+          { token: "type", foreground: "4EC9B0" },
+          { token: "comment", foreground: "6A9955", fontStyle:"italic" }
+        ],
+        colors: { "editor.background": "#0b1220" }
       });
+      model = monaco.editor.createModel(sample, "java", monaco.Uri.parse("inmemory://model/Main.java"));
+      editor = monaco.editor.create(document.getElementById('editor'), {
+        model, theme: "plunkyDark", automaticLayout: true, fontSize: 14, minimap: { enabled: false }
+      });
+      editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => run());
+    });
 
-      if(!res.ok){
-        let msg=""; try{ msg = await res.text(); }catch{}
-        setStatus(`Compile request failed (${res.status})${msg? " – " + msg : ""}`,"err"); showSpinner(false); return;
+    // ======== DOM ready: init terminal ========
+    window.addEventListener("DOMContentLoaded", () => {
+      term = new Terminal({ convertEol: true, fontSize: 14 });
+      term.open(document.getElementById('term'));
+      document.getElementById('runBtn').onclick = run;
+      document.getElementById('stopBtn').onclick = stopRun;
+    });
+
+    function setStatus(text, kind="") {
+      const el = document.getElementById('status');
+      el.textContent = text;
+      el.className = "status " + (kind || "");
+    }
+
+    function clearMarkers() {
+      if (!model) return;
+      monaco.editor.setModelMarkers(model, "javac", []);
+    }
+    function setMarkers(diags) {
+      if (!model) return;
+      const markers = (diags || []).map(d => ({
+        message: d.message,
+        startLineNumber: d.line || 1,
+        startColumn: d.column || 1,
+        endLineNumber: d.line || 1,
+        endColumn: (d.column || 1) + 1,
+        severity: d.severity === "warning"
+          ? monaco.MarkerSeverity.Warning
+          : monaco.MarkerSeverity.Error
+      }));
+      monaco.editor.setModelMarkers(model, "javac", markers);
+      if (markers.length) {
+        editor.revealLineInCenter(markers[0].startLineNumber);
+        editor.setPosition({ lineNumber: markers[0].startLineNumber, column: markers[0].startColumn });
       }
-
-      const data = await res.json();
-      if(!data.ok){
-        setMarkers(data.diagnostics||[]); setStatus("Compilation failed – see editor.","err");
-        if(data.compileLog) term.write(data.compileLog); showSpinner(false); return;
-      }
-
-      setStatus("Running (interactive)…","ok"); showSpinner(false);
-      const wsURL = WS_BASE + "/term?token=" + encodeURIComponent(data.token);
-      ws = new WebSocket(wsURL);
-      ws.onmessage = (e) => {
-        const msg = JSON.parse(e.data);
-        if (msg.type === "stdout") {
-          // Hide "Picked up JAVA_TOOL_OPTIONS..." noise
-          const filtered = msg.data.replace(/^Picked up JAVA_TOOL_OPTIONS:.*\r?\n?/mg, "");
-          if (filtered) term.write(filtered);
-        }
-        if (msg.type === "exit") {
-          term.write(`\r\n\nProcess exited with code ${msg.code}\r\n`);
-          setStatus("Finished (exit " + msg.code + ")", msg.code === 0 ? "ok" : "err");
-          ws = null;
-        }
-      };
-      ws.onclose = () => { ws = null; };
-      term.onData(d => { if (ws) ws.send(JSON.stringify({ type:"stdin", data:d })) });
-
-    }catch(err){
-      console.error(err); setStatus("Network error – cannot reach compiler backend.","err"); showSpinner(false);
-    }
-  }
-
-  function stopRun(){
-    const preview = document.getElementById('preview');
-    if (lang === "html" || lang === "web"){
-      preview.srcdoc = "<!DOCTYPE html><html><body style='font-family:system-ui;background:#0b1220;color:#e5e7eb;margin:20px'>Stopped.</body></html>";
-      setStatus("Stopped.","err"); return;
-    }
-    if (ws) { try{ ws.close(); } catch{} ws=null; }
-    setStatus("Stopped.","err");
-  }
-
-  async function sendWhatsApp(){
-    const area = document.getElementById('captureArea');
-    const preview = document.getElementById('preview');
-
-    // Hide iframe (cannot be rasterized), show placeholder
-    let placeholder = null, hidPreview = false;
-    if (preview && preview.style.display !== 'none') {
-      hidPreview = true;
-      placeholder = document.createElement('div');
-      placeholder.textContent = "HTML preview omitted in screenshot";
-      placeholder.style.cssText = "margin:8px;padding:12px;border:1px dashed #334155;border-radius:8px;color:#9ca3af;font-size:12px;background:#0b1220";
-      preview.parentNode.insertBefore(placeholder, preview);
-      preview.style.display = 'none';
     }
 
-    try {
-      // Prefer html-to-image, fallback to html2canvas
-      let dataUrl;
+    async function run() {
       try {
-        dataUrl = await htmlToImage.toPng(area, {
-          cacheBust: true,
-          pixelRatio: 1.2,
-          filter: (node) => node.id !== 'preview' // ensure iframe excluded
-        });
-      } catch {
-        const canvas = await html2canvas(area, { backgroundColor: "#0f172a", useCORS: true, scale: 1.2 });
-        dataUrl = canvas.toDataURL("image/png", 0.95);
-      }
+        setStatus("Compiling…");
+        clearMarkers();
+        term.clear();
 
-      // Make a Blob from dataURL
-      const res = await fetch(dataUrl);
-      const blob = await res.blob();
-      const url  = URL.createObjectURL(blob);
+        const files = [{ path: "Main.java", content: editor.getValue() }];
 
-      // Try to copy to clipboard (best-effort)
-      try {
-        if (navigator.clipboard && window.ClipboardItem) {
-          await navigator.clipboard.write([ new ClipboardItem({ "image/png": blob }) ]);
+        const res = await fetch(API_BASE + "/api/java/prepare", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ mainClass: "Main", files })
+});
+
+if (!res.ok) {
+  let msg = "";
+  try { msg = await res.text(); } catch {}
+  setStatus(`Compile request failed (${res.status}) ${msg ? "– " + msg : ""}`, "err");
+  return;
+}
+
+        const data = await res.json();
+
+        if (!data.ok) {
+          setMarkers(data.diagnostics || []);
+          setStatus("Compilation failed – see red underlines.", "err");
+          if (data.compileLog) term.write(data.compileLog);
+          return;
         }
-      } catch {}
 
-      // Also download so user can attach in WhatsApp
-      const a = document.createElement('a');
-      a.href = url; a.download = "polycode-screenshot.png";
-      document.body.appendChild(a); a.click(); a.remove();
+        setStatus("Running (interactive)…", "ok");
 
-      // Open WhatsApp chat with guidance text
-      const msg = encodeURIComponent("Code & output from Edifica Polycode.\nScreenshot downloaded (and copied to clipboard if supported). Please attach it here.");
-      window.open("https://wa.me/919836313636?text=" + msg, "_blank");
-    } catch (e) {
-      alert("Could not capture the screen. You can still open WhatsApp and paste/attach manually.");
-      window.open("https://wa.me/919836313636", "_blank");
-    } finally {
-      if (hidPreview) { preview.style.display = 'block'; if (placeholder) placeholder.remove(); }
+        // If same-origin in prod, you can also do: location.origin.replace("http","ws")
+        ws = new WebSocket(WS_BASE + "/term?token=" + encodeURIComponent(data.token));
+        ws.onmessage = (e) => {
+          const msg = JSON.parse(e.data);
+          if (msg.type === "stdout") term.write(msg.data);
+          if (msg.type === "exit") {
+            term.write(`\r\n\nProcess exited with code ${msg.code}\r\n`);
+            setStatus("Finished (exit " + msg.code + ")", msg.code === 0 ? "ok" : "err");
+            ws = null;
+          }
+        };
+        ws.onclose = () => { ws = null; };
+        term.onData(d => { if (ws) ws.send(JSON.stringify({ type:"stdin", data:d })) });
+
+      } catch (err) {
+        setStatus("Network error – cannot reach compiler backend.", "err");
+        console.error(err);
+      }
     }
-  }
-</script>
+
+    function stopRun() {
+      if (ws) { try { ws.close(); } catch(e){} ws = null; }
+      setStatus("Stopped.", "err");
+    }
+  </script>
 </body>
 </html>
