@@ -381,6 +381,7 @@ Screenshot: ${imageUrl}
     console.error(e);
     setStatus("Could not prepare submission.", "err");
     alert("Upload failed. Please try again, or attach the downloaded screenshot and paste code manually.");
+    alert(e.message);
   }
 }
 
