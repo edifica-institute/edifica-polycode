@@ -341,14 +341,14 @@ SELECT * FROM t;`
       }
 
       setStatus("Running (interactive)…","ok"); showSpinner(false);
-      const wsURL = (location.origin.replace("http","ws")) + "/term?token=" + encodeURIComponent(data.token);
+      const wsURL = WS_BASE + "/term?token=" + encodeURIComponent(data.token);
       ws = new WebSocket(wsURL);
       ws.onmessage = (e) => {
         const msg = JSON.parse(e.data);
         if (msg.type === "stdout") {
           // Hide "Picked up JAVA_TOOL_OPTIONS..." noise
-          const filtered = msg.data.replace(/^Picked up JAVA_TOOL_OPTIONS:.*\r?\n?/mg, "");
-          if (filtered) term.write(filtered);
+          //const filtered = msg.data.replace(/^Picked up JAVA_TOOL_OPTIONS:.*\r?\n?/mg, "");
+          //if (filtered) term.write(filtered);
         }
         if (msg.type === "exit") {
           term.write(`\r\n\nProcess exited with code ${msg.code}\r\n`);
