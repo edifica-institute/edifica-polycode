@@ -274,3 +274,14 @@ export async function uploadSubmission({ screenshotBlob, codeText, student, lang
   if (!data.ok) throw new Error(data.error || "Upload failed");
   return data; // { ok:true, imageUrl, codeUrl, ... }
 }
+
+
+
+
+export function fitLayoutHeight() {
+  const header = document.querySelector('header');
+  const headerH = header ? header.offsetHeight : 0;
+  // 24px = .wrap vertical padding (12 top + 12 bottom)
+  const h = Math.max(360, window.innerHeight - headerH - 24);
+  document.documentElement.style.setProperty('--panelH', h + 'px');
+}
