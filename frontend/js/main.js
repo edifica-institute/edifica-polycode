@@ -235,3 +235,11 @@ Screenshot: ${imageUrl}
   }
 }
 
+window.addEventListener('DOMContentLoaded', async () => {
+  await initMonaco();
+  initTerminal();
+  initSplitter();          // ← make sure this line exists
+  setStatus("Ready.");
+  // ...
+});
+
