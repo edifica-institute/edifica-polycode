@@ -65,7 +65,7 @@
   #sqlout th{ background:#0b1220 }
 
   /* Normal arrow cursor in output panel */
-  #term, #term *, #preview, #sqlout{ cursor: default !important; }
+  #preview, #sqlout { cursor: default !important; }
 
   .status{ padding:8px 10px; font-size:13px; border-bottom:1px solid #1f2937; position:relative }
   .status.ok{ color:var(--accent) }
@@ -124,7 +124,12 @@
 
     <!-- right -->
     <section class="panel" style="grid-column:3">
-      <div id="status" class="status">Ready.<span id="spinner"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span></div>
+      <div id="status" class="status">
+  <span id="statusText">Ready.</span>
+  <span id="spinner" style="display:none">
+    <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+  </span>
+</div>
       <div id="term"></div>
       <iframe id="preview" style="display:none" sandbox="allow-scripts allow-forms allow-modals allow-popups" referrerpolicy="no-referrer"></iframe>
       <div id="sqlout" style="display:none"></div>
@@ -211,7 +216,12 @@ SELECT * FROM t;`
 
   // Terminal
   window.addEventListener("DOMContentLoaded", () => {
-    term = new Terminal({ convertEol:true, fontSize:14 });
+    term = new Terminal({
+  convertEol: true,
+  fontSize: 14,
+  cursorBlink: true,   // <— blink
+  cursorStyle: 'block' // 'block' | 'bar' | 'underline'
+});
     term.open(document.getElementById('term'));
     document.getElementById('runBtn').onclick = run;
     document.getElementById('stopBtn').onclick = stopRun;
@@ -232,8 +242,16 @@ SELECT * FROM t;`
     document.getElementById('webEditors').style.display   = (mode==="web")?"grid":"none";
   }
 
-  function setStatus(text, kind=""){ const el=document.getElementById('status'); el.textContent=text; el.className="status "+(kind||""); }
-  function showSpinner(v){ document.getElementById('spinner').style.display = v ? 'inline-block' : 'none'; }
+  function setStatus(text, kind=""){
+  const box = document.getElementById('status');
+  const txt = document.getElementById('statusText');
+  if (txt) txt.textContent = text;
+  if (box) box.className = "status " + (kind || "");
+}
+function showSpinner(v){
+  const s = document.getElementById('spinner');
+  if (s) s.style.display = v ? 'inline-block' : 'none';
+}
   function clearMarkers(){ if(!model) return; monaco.editor.setModelMarkers(model, "diags", []); }
   function setMarkers(diags){
     if(!model) return;
@@ -375,23 +393,52 @@ SELECT * FROM t;`
   }
 
   async function sendWhatsApp(){
-    // Screenshot the whole work area
-    const area = document.getElementById('captureArea');
-    try{
-      const canvas = await html2canvas(area, { backgroundColor: "#0f172a", useCORS:true, scale: 1.2 });
-      const blob = await new Promise(r => canvas.toBlob(r, "image/png", 0.95));
-      // Try to copy to clipboard (Chrome/Edge)
-      try{
+  const area = document.getElementById('captureArea');
+  const preview = document.getElementById('preview');
+
+  // If iframe is visible, temporarily hide it & show a placeholder (html2canvas can't render iframes)
+  let placeholder = null, hidPreview = false;
+  if (preview && preview.style.display !== 'none') {
+    hidPreview = true;
+    placeholder = document.createElement('div');
+    placeholder.textContent = "HTML preview omitted in screenshot";
+    placeholder.style.cssText = "margin:8px;padding:12px;border:1px dashed #334155;border-radius:8px;color:#9ca3af;font-size:12px;background:#0b1220";
+    preview.parentNode.insertBefore(placeholder, preview);
+    preview.style.display = 'none';
+  }
+
+  try {
+    const canvas = await html2canvas(area, { backgroundColor: "#0f172a", useCORS: true, scale: 1.2 });
+    const blob = await new Promise(res => canvas.toBlob(res, "image/png", 0.95));
+    const url = URL.createObjectURL(blob);
+
+    // Try to copy to clipboard (best effort)
+    try {
+      if (navigator.clipboard && window.ClipboardItem) {
         await navigator.clipboard.write([ new ClipboardItem({ "image/png": blob }) ]);
-      }catch(_){}
-      // Open WhatsApp chat with prefilled text
-      const msg = encodeURIComponent("Code & output from Edifica Polycode.\n(If an image didn’t attach automatically, paste from clipboard.)");
-      window.open("https://wa.me/919836313636?text=" + msg, "_blank");
-    }catch(e){
-      alert("Could not capture the screen. You can still open WhatsApp and paste the code/output manually.");
-      window.open("https://wa.me/919836313636", "_blank");
+      }
+    } catch { /* ignore */ }
+
+    // Also trigger a download so the image is available to attach in WhatsApp
+    const a = document.createElement('a');
+    a.href = url; a.download = "polycode-screenshot.png";
+    document.body.appendChild(a); a.click(); a.remove();
+
+    // Open WhatsApp chat with guidance text
+    const msg = encodeURIComponent("Code & output from Edifica Polycode.\nScreenshot downloaded (and copied to clipboard if supported). Please attach it here.");
+    window.open("https://wa.me/919836313636?text=" + msg, "_blank");
+  } catch (e) {
+    alert("Could not capture the screen. You can still open WhatsApp and paste/attach manually.");
+    window.open("https://wa.me/919836313636", "_blank");
+  } finally {
+    // Restore preview
+    if (hidPreview) {
+      preview.style.display = 'block';
+      if (placeholder) placeholder.remove();
     }
   }
+}
+
 </script>
 </body>
 </html>
