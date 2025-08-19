@@ -75,3 +75,8 @@ export function setMarkers(diags = []) {
     editor.setPosition({ lineNumber: markers[0].startLineNumber, column: markers[0].startColumn });
   }
 }
+
+
+export function setLanguage(lang){ monacoRef.editor.setModelLanguage(model, lang); }
+export function setValue(val){ editor.setValue(val); }
+export function getValue(){ return editor.getValue(); }
