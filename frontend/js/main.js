@@ -16,6 +16,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 });*/
 
 
+/*
 // js/main.js
 import { initMonaco, setLanguage, setValue } from './core/editor.js';
 import { initTerminal } from './core/terminal.js';
@@ -100,3 +101,83 @@ function stop(){
   }
   return stopJava();
 }
+
+*/
+
+
+
+
+
+
+
+
+
+
+
+// js/main.js
+import { initMonaco, setLanguage, setValue } from './core/editor.js';
+import { initTerminal } from './core/terminal.js';
+import { setStatus } from './core/ui.js';
+import * as javaLang from './lang/java.js';   // ← namespace import
+let current = 'java';
+let htmlMod = null;
+
+window.addEventListener('DOMContentLoaded', async () => {
+  await initMonaco();
+  initTerminal();
+  setStatus("Ready.");
+
+  document.getElementById('runBtn').onclick  = run;
+  document.getElementById('stopBtn').onclick = stop;
+  window.addEventListener('polycode:run', run);
+
+  const sel = document.getElementById('langSel');
+  if (sel) sel.onchange = () => switchLang(sel.value);
+});
+
+async function loadHtmlModule() {
+  const url = new URL('./lang/html.js', import.meta.url);
+  return import(url.href);
+}
+
+async function switchLang(lang){
+  current = lang;
+
+  const term    = document.getElementById('term');
+  const preview = document.getElementById('preview');
+
+  if (lang === 'html') {
+    if (term) term.style.display = 'none';
+    if (preview) preview.style.display = 'block';
+    try {
+      if (!htmlMod) htmlMod = await loadHtmlModule();
+      htmlMod.activate();
+    } catch (e) {
+      console.error('Failed to load html module:', e);
+      // Fallback: still switch editor & show preview
+      try {
+        setLanguage('html');
+        setValue(`<!doctype html><html><head><meta charset="utf-8"><title>Preview</title></head><body><h2>Hello, HTML!</h2></body></html>`);
+      } catch {}
+      if (preview) preview.srcdoc = `<!doctype html><html><body style="font-family:system-ui;background:#0b1220;color:#e5e7eb;margin:20px">HTML module failed to load. A fallback preview is shown.</body></html>`;
+      const hint = document.getElementById('hint'); if (hint) hint.textContent = "HTML preview is shown on the right.";
+      setStatus("Ready.");
+    }
+    return;
+  }
+
+  // Back to Java: show terminal, reset Java code & hint
+  javaLang.activate();
+}
+async function run(){
+  if (current === 'html') {
+    if (!htmlMod) htmlMod = await loadHtmlModule();
+    return htmlMod.run();
+  }
+  return javaLang.runJava();
+}
+function stop(){
+  if (current === 'html') { htmlMod?.stop?.(); return; }
+  return javaLang.stopJava();
+}
+
