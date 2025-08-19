@@ -154,7 +154,7 @@ wss.on("connection", (ws, req) => {
   term.onExit(({ exitCode }) => {
     ws.send(JSON.stringify({ type:"exit", code: exitCode }));
     ws.close();
-    setTimeout(() => fssync.rmSync(jobDir, { recursive: true, force: true });
+    setTimeout(() => fssync.rmSync(jobDir, { recursive: true, force: true }));
     SESSIONS.delete(token);
   });
 
