@@ -458,6 +458,14 @@ import {
 } from './core/ui.js';
 import * as javaLang from './lang/java.js';
 import * as sqlLang  from './lang/sql.js';
+import * as webLang from './lang/web.js';
+
+
+
+
+
+
+
 
 let current = 'java';
 let htmlMod = null;
@@ -595,17 +603,43 @@ async function loadHtmlModule() {
   return import(url.href);
 }
 
+
 async function switchLang(lang) {
   current = lang;
-  const termEl = document.getElementById('term');
+
+  // Grab UI bits
+  const termEl  = document.getElementById('term');
   const preview = document.getElementById('preview');
   const sqlout  = document.getElementById('sqlout');
   const hint    = document.getElementById('hint');
+  const single  = document.getElementById('editor');
+  const webWrap = document.getElementById('webEditors');
 
-  if (lang === 'html') {
-    termEl?.classList.add('hidden');
+  // ---- Default visibility (reset) ------------------------------------------
+  // Hide terminal by default (we show it only when Java actually runs)
+  termEl?.classList.add('hidden');
+
+  // Hide right-panel outputs by default
+  if (preview) preview.style.display = 'none';
+  if (sqlout)  sqlout.style.display  = 'none';
+
+  // Show single-editor by default; hide 3-pane web editors
+  if (single)  single.style.display  = 'block';
+  if (webWrap) webWrap.style.display = 'none';
+
+  // ---- Web (HTML + CSS + JS) -----------------------------------------------
+  if (lang === 'web') {
+    // 3 Monaco panes on the left, preview on the right
+    webLang.activate();
     if (preview) preview.style.display = 'block';
-    if (sqlout)  sqlout.style.display  = 'none';
+    if (hint) hint.textContent = 'Edit HTML, CSS & JS. Click Run to render on the right.';
+    setStatus('Ready.');
+    return;
+  }
+
+  // ---- HTML (single file) ---------------------------------------------------
+  if (lang === 'html') {
+    if (preview) preview.style.display = 'block';
     try {
       if (!htmlMod) htmlMod = await loadHtmlModule();
       htmlMod.activate();
@@ -617,32 +651,44 @@ async function switchLang(lang) {
         setValue(`<!doctype html><html><head><meta charset="utf-8"><title>Preview</title></head><body><h2>Hello, HTML!</h2></body></html>`);
       } catch {}
       if (preview) {
-        preview.srcdoc = `<!doctype html><html><body style="font-family:system-ui;background:#0b1220;color:#e5e7eb;margin:20px">
-          HTML module failed to load. A fallback preview is shown.
-        </body></html>`;
+        preview.srcdoc =
+          `<!doctype html><html><body style="font-family:system-ui;background:#0b1220;color:#e5e7eb;margin:20px">
+             HTML module failed to load. A fallback preview is shown.
+           </body></html>`;
       }
       if (hint) hint.textContent = 'HTML preview is shown on the right.';
-      setStatus('Ready.');
     }
+    setStatus('Ready.');
     return;
   }
 
+  // ---- SQL (SQLite in-browser) ---------------------------------------------
   if (lang === 'sql') {
-    termEl?.classList.add('hidden');
-    if (preview) preview.style.display = 'none';
-    if (sqlout)  sqlout.style.display  = 'block';
+    if (sqlout) sqlout.style.display = 'block';
     sqlLang.activate();
+    if (hint) hint.textContent = 'Write SQL on the left. Results appear as a table.';
+    setStatus('Ready.');
     return;
   }
 
-  // Java
-  if (preview) preview.style.display = 'none';
-  if (sqlout)  sqlout.style.display  = 'none';
-  termEl?.classList.add('hidden');
+  // ---- Default: Java --------------------------------------------------------
+  // Keep terminal hidden until "Run" (it will unhide in runJava)
   javaLang.activate();
   if (hint) hint.textContent = 'Type into the console when your program asks for input (e.g., Scanner).';
   setStatus('Ready.');
 }
+
+
+
+
+
+
+
+
+
+
+
+
 
 // ---------- Run / Stop -------------------------------------------------------
 async function run() {
@@ -653,12 +699,15 @@ async function run() {
   if (current === 'sql') {
     return sqlLang.run();
   }
+   if (current === 'web')  {return webLang.run();
+                           }
   // Java
   document.getElementById('term')?.classList.remove('hidden');
   return javaLang.runJava();
 }
 
 function stop() {
+   if (current === 'web') { return webLang.stop();}
   if (current === 'html') { try { htmlMod?.stop?.(); } catch {} return; }
   if (current === 'sql')  { return sqlLang.stop(); }
   document.getElementById('term')?.classList.add('hidden');
@@ -685,7 +734,10 @@ async function sendToWhatsApp() {
     } else if (lang === 'SQL') {
       outputText = (sqlLang.getLastOutput?.() || '').trim();
     }
+else if (lang === 'WEB')  {outputText = '(HTML+CSS+JS preview omitted)';  // new
+                          }
 
+      
     // Student identity (remembered once)
     const key = 'polycode_student';
     let student = localStorage.getItem(key) || '';
