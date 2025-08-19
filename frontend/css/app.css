@@ -154,4 +154,25 @@ select{ background:#0b1220; color:#e5e7eb; border:1px solid #334155; padding:8px
   background: transparent !important;
 }
 
+/* SQL output styling */
+#sqlout{
+  height: calc(var(--panelH) - 42px);
+  overflow: auto;
+  padding: 10px;
+  background: #0b1220;
+}
+#sqlout table{
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+#sqlout th, #sqlout td{
+  border: 1px solid #334155;
+  padding: 6px 8px;
+  text-align: left;
+}
+#sqlout th{
+  background: #0f172a;
+  color: #e5e7eb;
+}
 
