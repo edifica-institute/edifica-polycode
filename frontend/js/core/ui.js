@@ -284,3 +284,68 @@ export function fitLayoutHeight() {
   const h = Math.max(360, window.innerHeight - (header?.offsetHeight || 0) - 24); // 24 = .wrap padding
   document.documentElement.style.setProperty('--panelH', h + 'px');
 }
+
+
+
+
+
+// Capture one screenshot of user's chosen screen/window/tab
+export async function captureSystemScreenshot() {
+  // Must be HTTPS and called from a user gesture (e.g., a button click)
+  const stream = await navigator.mediaDevices.getDisplayMedia({
+    video: { displaySurface: "monitor" }, audio: false
+  });
+  const track = stream.getVideoTracks()[0];
+
+  // Draw one frame to a canvas
+  const video = document.createElement('video');
+  video.srcObject = stream;
+  await video.play();
+  // tiny delay to ensure the first frame is available
+  await new Promise(r => setTimeout(r, 120));
+
+  const canvas = document.createElement('canvas');
+  canvas.width = video.videoWidth || 1280;
+  canvas.height = video.videoHeight || 720;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+  // cleanup camera stream
+  stream.getTracks().forEach(t => t.stop());
+
+  const blob = await new Promise(res => canvas.toBlob(res, 'image/png', 0.95));
+  return blob; // PNG blob
+}
+
+// Try native OS share (mobile) → else upload & open WhatsApp Web
+export async function shareScreenshotToWhatsApp({ blob, codeText, student, lang }) {
+  const msg = `PolyCode submission
+Student: ${student || '(not provided)'}
+Language: ${(lang||'').toUpperCase()}`;
+
+  // Mobile path: Web Share API with file → WhatsApp native picker
+  const file = new File([blob], 'polycode-screenshot.png', { type: 'image/png' });
+  if (navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share) {
+    try {
+      await navigator.share({ files:[file], text: msg, title: 'PolyCode submission' });
+      return;
+    } catch { /* fall through */ }
+  }
+
+  // Desktop / fallback: upload then open wa.me with links
+  const fd = new FormData();
+  fd.append('screenshot', file);
+  fd.append('code', new File([codeText||''], `code.${(lang||'txt').toLowerCase()}.txt`, { type:'text/plain;charset=utf-8' }));
+  if (student) fd.append('student', student);
+  if (lang)    fd.append('lang', lang);
+
+  const res = await fetch('/api/upload', { method:'POST', body: fd });
+  if (!res.ok) throw new Error(`Upload failed (${res.status})`);
+  const data = await res.json();
+  if (!data.ok) throw new Error(data.error || 'Upload failed');
+
+  const text = `${msg}
+Image: ${data.imageUrl}
+Code: ${data.codeUrl}`;
+  window.open('https://wa.me/919836313636?text=' + encodeURIComponent(text), '_blank');
+}
