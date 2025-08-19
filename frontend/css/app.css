@@ -176,3 +176,24 @@ select{ background:#0b1220; color:#e5e7eb; border:1px solid #334155; padding:8px
   color: #e5e7eb;
 }
 
+
+/* Three Monaco panes for Web mode */
+.webgrid{
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  padding: 10px;
+}
+.webgrid > div{
+  height: calc(var(--panelH) - 84px); /* adjust if your layout differs */
+  border: 1px solid #1f2937;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* On narrow screens, stack editors */
+@media (max-width: 980px){
+  .webgrid{ grid-template-columns: 1fr; }
+  .webgrid > div{ height: 42vh; }
+}
+
