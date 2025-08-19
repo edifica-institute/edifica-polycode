@@ -20,6 +20,10 @@ term = new Terminal({
 
 
   term.open(document.getElementById('term'));
+ const forceBar = () => { term.setOption('cursorStyle','bar'); term.setOption('cursorBlink', true); };
+term.element?.addEventListener('focusin', forceBar);
+term.element?.addEventListener('mousedown', forceBar);
+ 
   return term;
 }
 
