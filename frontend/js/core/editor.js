@@ -80,7 +80,7 @@ export function setMarkers(diags = []) {
 export function setLanguage(lang){ monacoRef.editor.setModelLanguage(model, lang); }
 export function setValue(val){ editor.setValue(val); }
 export function getValue(){ return editor.getValue(); }
-*/
+
 
 
 
@@ -179,7 +179,135 @@ export function setMarkers(diags = []) {
   }
 }
 
-/* --- add these three for HTML mode --- */
+/* --- add these three for HTML mode --- 
 export function setLanguage(lang){ monacoRef.editor.setModelLanguage(model, lang); }
 export function setValue(val){ editor.setValue(val); }
-export function getValue(){ return editor.getValue(); }
+export function getValue(){ return editor.getValue(); }*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// frontend/js/core/editor.js
+// Single Monaco editor + one shared model (we just change language/value).
+// Prevents "ModelService: Cannot add model because it already exists!"
+
+let editor = null;
+let model  = null;
+
+// Stable URIs for the shared single-file editor (pick ONE you prefer)
+const URIS = {
+  java: monaco.Uri.parse('inmemory://polycode/Main.java'),
+  html: monaco.Uri.parse('inmemory://polycode/index.html'),
+  sql:  monaco.Uri.parse('inmemory://polycode/query.sql'),
+};
+// We'll actually keep ONE model and just swap its language/value.
+// Use the Java URI as the "home" URI.
+const MAIN_URI = URIS.java;
+
+export function initMonaco() {
+  return new Promise((resolve) => {
+    if (editor) return resolve(editor); // guard: already inited
+
+    // Monaco AMD is already loaded via <script loader.js> in index.html
+    require(['vs/editor/editor.main'], function () {
+      // Theme (idempotent)
+      try {
+        monaco.editor.defineTheme('plunkyDark', {
+          base: 'vs-dark', inherit: true,
+          rules: [
+            { token: 'keyword', foreground: 'C586C0', fontStyle: 'bold' },
+            { token: 'string',  foreground: 'CE9178' },
+            { token: 'number',  foreground: 'B5CEA8' },
+            { token: 'type',    foreground: '4EC9B0' },
+            { token: 'comment', foreground: '6A9955', fontStyle: 'italic' }
+          ],
+          colors: { 'editor.background': '#0b1220' }
+        });
+      } catch {}
+
+      // Reuse existing model for MAIN_URI if it already exists
+      model = monaco.editor.getModel(MAIN_URI);
+      if (!model) {
+        model = monaco.editor.createModel(
+          `// Java starter
+import java.util.*;
+public class Main {
+  public static void main(String[] args){
+    System.out.println("Hello from PolyCode!");
+  }
+}
+`, 'java', MAIN_URI);
+      }
+
+      editor = monaco.editor.create(document.getElementById('editor'), {
+        model,
+        theme: 'plunkyDark',
+        automaticLayout: true,
+        minimap: { enabled: false },
+        fontSize: 14,
+      });
+
+      // Ctrl/Cmd + Enter -> dispatch a global run event
+      editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
+        window.dispatchEvent(new CustomEvent('polycode:run'));
+      });
+
+      resolve(editor);
+    });
+  });
+}
+
+// Change language of the single shared model (no new model created)
+export function setLanguage(lang) {
+  if (!model) return;
+  monaco.editor.setModelLanguage(model, lang);
+}
+
+// Set content of the single shared model
+export function setValue(text) {
+  if (!model) return;
+  model.setValue(text);
+}
+
+// Optionally switch the model's URI if you want different URIs per lang
+// (not necessary, but here if you want it)
+export function switchModelUriForLang(lang) {
+  if (!model) return;
+  const targetUri = (lang === 'html') ? URIS.html
+                   : (lang === 'sql') ? URIS.sql
+                   : URIS.java;
+  if (model.uri.toString() !== targetUri.toString()) {
+    // Move model to a new URI without creating/disposal churn
+    model._associatedResource = targetUri; // internal; works in current Monaco
+  }
+}
+
+export function getEditor() { return editor; }
+export function getModel()  { return model; }
+
+
