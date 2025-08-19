@@ -140,7 +140,10 @@ wss.on("connection", (ws, req) => {
   } else {
     // ===== Local run (no Docker) =====
     // Light resource guards: 5s CPU, ~512MB RAM, run from jobDir
-    const runCmd = `ulimit -t 5 -v 524288; java ${mainClass}`;
+    const JAVA_OPTS = process.env.JAVA_TOOL_OPTIONS
+  || "-Xms32m -Xmx128m -XX:MaxMetaspaceSize=64m -XX:+UseSerialGC -Xss512k";
+
+const runCmd = `ulimit -t 5; cd "${jobDir}"; java ${JAVA_OPTS} ${mainClass}`;
     term = spawn("bash", ["-lc", runCmd], {
       name: "xterm-color",
       cols: 80,
