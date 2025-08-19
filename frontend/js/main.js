@@ -1,7 +1,7 @@
 //new 2
 
 // frontend/js/main.js
-import { initMonaco, setLanguage, setValue } from './core/editor.js';
+import { initMonaco, setLanguage, setValue, clearMarkers, setMarkers } from './core/editor.js';
 import { initTerminal, clearTerminal  } from './core/terminal.js';
 import {
   setStatus, initSplitter, fitLayoutHeight,
