@@ -18,14 +18,12 @@ function loadScript(url){
   return new Promise((resolve, reject)=>{
     const s = document.createElement('script');
     s.src = url; s.async = true;
-    s.onload = () => resolve();
-    s.onerror = () => reject(new Error('Failed to load ' + url));
+    s.onload = resolve;
+    s.onerror = () => reject(new Error('Failed ' + url));
     document.head.appendChild(s);
   });
 }
-
 function relFromHere(rel){
-  // sql.js is at /js/lang/sql.js → ../../vendor/... = /vendor/...
   try { return new URL(rel, import.meta.url).href; }
   catch { return rel; }
 }
@@ -33,31 +31,25 @@ function relFromHere(rel){
 async function ensureSql(){
   if (SQL) return SQL;
 
-  // Try local first, then CDNs
   const candidates = [
-    relFromHere('../../vendor/sql-wasm.js'),                               // /vendor/sql-wasm.js
+    relFromHere('../../vendor/sql-wasm.js'), // served by your site if files exist
     'https://cdn.jsdelivr.net/npm/sql.js@1.8.0/dist/sql-wasm.js',
     'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js',
   ];
 
-  let wasmBase = null;
+  let base = null;
   for (const u of candidates){
     try {
       await loadScript(u);
-      if (typeof initSqlJs === 'function') {
-        // whatever folder the JS came from, use the SAME folder for the .wasm
-        wasmBase = u.replace(/[^/]+$/, '');
-        break;
-      }
+      if (typeof initSqlJs === 'function') { base = u.replace(/[^/]+$/, ''); break; }
     } catch {}
   }
-  if (!wasmBase) throw new Error('Could not load sql.js');
+  if (!base) throw new Error('Could not load sql.js');
 
-  SQL = await initSqlJs({
-    locateFile: (filename) => wasmBase + filename   // e.g. .../sql-wasm.wasm
-  });
+  SQL = await initSqlJs({ locateFile: (filename) => base + filename });
   return SQL;
 }
+
 
 
 
