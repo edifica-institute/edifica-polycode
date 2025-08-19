@@ -23,12 +23,10 @@ const SAMPLE_HTML = `<!DOCTYPE html>
 </html>`;
 
 export function activate(){
-  // Switch editor to HTML and load starter
   setLanguage('html');
   setValue(SAMPLE_HTML);
   setStatus("Ready.");
 
-  // Show preview, hide terminal
   const term = document.getElementById('term');
   const preview = document.getElementById('preview');
   if (term) term.style.display = 'none';
@@ -41,13 +39,10 @@ export async function run(){
   setStatus("Rendering HTML…","ok");
 
   const code = getValue();
-  // If user pasted only a fragment, wrap into full HTML
   const html = /<html[\s\S]*<\/html>/i.test(code)
     ? code
     : `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Preview</title></head><body>${code}</body></html>`;
   preview.srcdoc = html;
 }
 
-export function stop(){
-  setStatus("Stopped.","err");
-}
+export function stop(){ setStatus("Stopped.","err"); }
