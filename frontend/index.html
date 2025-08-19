@@ -5,19 +5,20 @@
 <title>Edifica Polycode</title>
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 
-<!-- xterm + monaco + sql.js + html2canvas -->
+<!-- xterm -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
 <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
 
-  <script>window.__amd_define = window.define; window.define = undefined;</script>
+<!-- Prevent sql.js from registering via AMD (avoids Monaco duplicate-define error) -->
+<script>window.__amd_define__ = window.define; window.define = undefined;</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-<script>window.define = window.__amd_define;</script>
+<script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js"></script>
+<script>window.define = window.__amd_define__;</script>
 
-
+<!-- Monaco AMD loader (load AFTER the shield) -->
 <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
 
-  
 <style>
   :root{
     --bg:#0f172a; --card:#111827; --text:#e5e7eb; --muted:#9ca3af; --accent:#22c55e; --danger:#ef4444;
@@ -33,14 +34,8 @@
   .badge{ font-size:12px; padding:2px 8px; border-radius:999px; border:1px solid #334155; color:var(--muted) }
 
   /* 3-column grid: editor | handle | output */
-  .wrap{
-    display:grid;
-    grid-template-columns: 1fr var(--handle) var(--outw);
-    gap:12px; padding:12px;
-  }
-  #splitter{
-    grid-column:2; cursor:col-resize; background:#243244; border-radius:8px; opacity:.7;
-  }
+  .wrap{ display:grid; grid-template-columns: 1fr var(--handle) var(--outw); gap:12px; padding:12px; }
+  #splitter{ grid-column:2; cursor:col-resize; background:#243244; border-radius:8px; opacity:.7; }
   .panel{ background:var(--card); border:1px solid #1f2937; border-radius:10px; overflow:hidden }
   .toolbar{ display:flex; gap:8px; align-items:center; padding:10px; border-bottom:1px solid #1f2937 }
   .toolbar .spacer{ flex:1 }
@@ -48,11 +43,8 @@
   button:hover{ border-color:#4b5563; transform:translateY(-1px); box-shadow:0 6px 16px rgba(0,0,0,.25) }
   button.primary{ background:#10b98122; border-color:#10b98166 }
   button.danger{ background:#ef444422; border-color:#ef444455 }
-  button.send{
-    background:linear-gradient(135deg,#06b6d4 0%, #10b981 50%, #22c55e 100%);
-    border:none; color:white; box-shadow:0 6px 20px rgba(16,185,129,.35);
-  }
-  select{ background:#0b1220; color:#e5e7eb; border:1px solid #334155; padding:8px 12px; border-radius:10px; min-width: 240px; } /* longer dropdown */
+  button.send{ background:linear-gradient(135deg,#06b6d4 0%, #10b981 50%, #22c55e 100%); border:none; color:white; box-shadow:0 6px 20px rgba(16,185,129,.35); }
+  select{ background:#0b1220; color:#e5e7eb; border:1px solid #334155; padding:8px 12px; border-radius:10px; min-width: 260px; } /* longer dropdown */
 
   #singleEditor{ display:block }
   #editor{ height:72vh }
@@ -70,22 +62,22 @@
   #sqlout th,#sqlout td{ border:1px solid #334155; padding:6px 8px; text-align:left; font-size:13px }
   #sqlout th{ background:#0b1220 }
 
-  /* Normal arrow cursor in output panel */
+  /* Normal arrow cursor in preview/SQL; terminal shows its own caret */
   #preview, #sqlout { cursor: default !important; }
 
-  .status{ padding:8px 10px; font-size:13px; border-bottom:1px solid #1f2937; position:relative }
+  .status{ padding:8px 10px; font-size:13px; border-bottom:1px solid #1f2937; position:relative; display:flex; align-items:center; gap:8px }
   .status.ok{ color:var(--accent) }
   .status.err{ color:var(--danger) }
   .note{ padding:8px 10px; border-top:1px solid #1f2937; color:#cbd5e1; font-size:12px }
 
   /* compile spinner */
-  #spinner{ position:absolute; right:10px; top:8px; display:none }
+  #spinner{ margin-left:auto; display:none }
   .dot{ width:6px; height:6px; border-radius:999px; background:#22c55e; display:inline-block; margin-left:6px; animation:b .9s infinite ease-in-out }
   .dot:nth-child(2){ animation-delay:.15s } .dot:nth-child(3){ animation-delay:.3s }
   @keyframes b{ 0%,80%,100%{ transform:scale(0.6); opacity:.4 } 40%{ transform:scale(1); opacity:1 } }
 
   @media (max-width:1100px){ .wrap{ grid-template-columns: 1fr var(--handle) min(90vw, var(--outw)) } }
-  @media (max-width:980px){ .wrap{ grid-template-columns: 1fr; } #splitter{ display:none } #editor{ height:50vh } #term,#preview,#sqlout{ height:40vh } #webEditors{ grid-template-columns:1fr; } #htmlEd,#cssEd,#jsEd{ height:42vh } }
+  @media (max-width:980px){ .wrap{ grid-template-columns:1fr; } #splitter{ display:none } #editor{ height:50vh } #term,#preview,#sqlout{ height:40vh } #webEditors{ grid-template-columns:1fr; } #htmlEd,#cssEd,#jsEd{ height:42vh } }
 </style>
 </head>
 <body>
@@ -131,11 +123,9 @@
     <!-- right -->
     <section class="panel" style="grid-column:3">
       <div id="status" class="status">
-  <span id="statusText">Ready.</span>
-  <span id="spinner" style="display:none">
-    <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-  </span>
-</div>
+        <span id="statusText">Ready.</span>
+        <span id="spinner"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>
+      </div>
       <div id="term"></div>
       <iframe id="preview" style="display:none" sandbox="allow-scripts allow-forms allow-modals allow-popups" referrerpolicy="no-referrer"></iframe>
       <div id="sqlout" style="display:none"></div>
@@ -146,10 +136,11 @@
 <script>
   // Same-origin: Cloudflare Pages proxy routes /api and /term to backend
   const API_BASE = "";
-const WS_BASE  = location.origin.replace("http", "ws");
+  const WS_BASE  = location.origin.replace(/^http/,'ws');
+
   // state
   let ws=null, term=null, lang="java", SQL=null;
-  let editor, model, htmlEd, cssEd, jsEd, sqlModel;
+  let editor, model, htmlEd, cssEd, jsEd;
 
   // Samples
   const samples = {
@@ -169,15 +160,15 @@ public class Main {
 }
 `,
     html: `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Preview</title></head><body><h2>Hello, HTML!</h2></body></html>`,
-    css: `body{font-family:system-ui;margin:20px;background:#0b1220;color:#e5e7eb}`,
-    js: `document.body.insertAdjacentHTML('beforeend','<p>JS running ✅</p>');`,
+    css:  `body{font-family:system-ui;margin:20px;background:#0b1220;color:#e5e7eb}`,
+    js:   `document.body.insertAdjacentHTML('beforeend','<p>JS running ✅</p>');`,
     sql: `-- Write SQL here. Example:
 CREATE TABLE t(id INTEGER PRIMARY KEY, name TEXT);
 INSERT INTO t(name) VALUES ('Ada'),('Grace'),('Linus');
 SELECT * FROM t;`
   };
 
-  // Monaco boot
+  // Monaco
   require.config({ paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs' }});
   require(['vs/editor/editor.main'], function () {
     monaco.editor.defineTheme("plunkyDark", {
@@ -210,31 +201,24 @@ SELECT * FROM t;`
     });
 
     setEditorsVisible("single"); // default Java uses single editor
-    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => run());
-    htmlEd.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => run());
-    cssEd.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => run());
-    jsEd.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => run());
+    [editor, htmlEd, cssEd, jsEd].forEach(ed=>{
+      ed.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => run());
+    });
   });
 
   // SQL init (async)
   initSqlJs({ locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${f}` })
     .then(SQLLib => SQL = SQLLib);
 
-  // Terminal
+  // Terminal + splitter
   window.addEventListener("DOMContentLoaded", () => {
-    term = new Terminal({
-  convertEol: true,
-  fontSize: 14,
-  cursorBlink: true,   // <— blink
-  cursorStyle: 'block' // 'block' | 'bar' | 'underline'
-});
+    term = new Terminal({ convertEol: true, fontSize: 14, cursorBlink: true, cursorStyle: 'bar' }); // thin blinking cursor
     term.open(document.getElementById('term'));
     document.getElementById('runBtn').onclick = run;
     document.getElementById('stopBtn').onclick = stopRun;
     document.getElementById('sendBtn').onclick = sendWhatsApp;
     document.getElementById('langSel').onchange = onLangChange;
 
-    // draggable splitter
     const wrap = document.querySelector('.wrap');
     const handle = document.getElementById('splitter');
     let dragging=false, startX=0, startW=0;
@@ -249,15 +233,13 @@ SELECT * FROM t;`
   }
 
   function setStatus(text, kind=""){
-  const box = document.getElementById('status');
-  const txt = document.getElementById('statusText');
-  if (txt) txt.textContent = text;
-  if (box) box.className = "status " + (kind || "");
-}
-function showSpinner(v){
-  const s = document.getElementById('spinner');
-  if (s) s.style.display = v ? 'inline-block' : 'none';
-}
+    const box = document.getElementById('status');
+    const txt = document.getElementById('statusText');
+    if (txt) txt.textContent = text;
+    if (box) box.className = "status " + (kind || "");
+  }
+  function showSpinner(v){ const s = document.getElementById('spinner'); if (s) s.style.display = v ? 'inline-block' : 'none'; }
+
   function clearMarkers(){ if(!model) return; monaco.editor.setModelMarkers(model, "diags", []); }
   function setMarkers(diags){
     if(!model) return;
@@ -292,7 +274,7 @@ function showSpinner(v){
       hint.textContent = "Edit HTML, CSS, JS in three panes. Preview updates on Run.";
     }else if(lang==="sql"){
       setEditorsVisible("single");
-      monaco.editor.setModelLanguage(model,"sql"); // syntax only
+      monaco.editor.setModelLanguage(model,"sql");
       editor.setValue(samples.sql);
       hint.textContent = "Outputs from SELECT appear as a table.";
     }
@@ -322,7 +304,7 @@ function showSpinner(v){
       sqlout.innerHTML = "";
       try{
         const db = new SQL.Database();
-        const res = db.exec(editor.getValue()); // array of {columns, values}
+        const res = db.exec(editor.getValue());
         if(!res.length){ sqlout.textContent = "Done."; return; }
         const last = res[res.length-1];
         const table = document.createElement('table');
@@ -371,8 +353,8 @@ function showSpinner(v){
         const msg = JSON.parse(e.data);
         if (msg.type === "stdout") {
           // Hide "Picked up JAVA_TOOL_OPTIONS..." noise
-          //const filtered = msg.data.replace(/^Picked up JAVA_TOOL_OPTIONS:.*\r?\n?/mg, "");
-          //if (filtered) term.write(filtered);
+          const filtered = msg.data.replace(/^Picked up JAVA_TOOL_OPTIONS:.*\r?\n?/mg, "");
+          if (filtered) term.write(filtered);
         }
         if (msg.type === "exit") {
           term.write(`\r\n\nProcess exited with code ${msg.code}\r\n`);
@@ -399,52 +381,61 @@ function showSpinner(v){
   }
 
   async function sendWhatsApp(){
-  const area = document.getElementById('captureArea');
-  const preview = document.getElementById('preview');
+    const area = document.getElementById('captureArea');
+    const preview = document.getElementById('preview');
 
-  // If iframe is visible, temporarily hide it & show a placeholder (html2canvas can't render iframes)
-  let placeholder = null, hidPreview = false;
-  if (preview && preview.style.display !== 'none') {
-    hidPreview = true;
-    placeholder = document.createElement('div');
-    placeholder.textContent = "HTML preview omitted in screenshot";
-    placeholder.style.cssText = "margin:8px;padding:12px;border:1px dashed #334155;border-radius:8px;color:#9ca3af;font-size:12px;background:#0b1220";
-    preview.parentNode.insertBefore(placeholder, preview);
-    preview.style.display = 'none';
-  }
+    // Hide iframe (cannot be rasterized), show placeholder
+    let placeholder = null, hidPreview = false;
+    if (preview && preview.style.display !== 'none') {
+      hidPreview = true;
+      placeholder = document.createElement('div');
+      placeholder.textContent = "HTML preview omitted in screenshot";
+      placeholder.style.cssText = "margin:8px;padding:12px;border:1px dashed #334155;border-radius:8px;color:#9ca3af;font-size:12px;background:#0b1220";
+      preview.parentNode.insertBefore(placeholder, preview);
+      preview.style.display = 'none';
+    }
 
-  try {
-    const canvas = await html2canvas(area, { backgroundColor: "#0f172a", useCORS: true, scale: 1.2 });
-    const blob = await new Promise(res => canvas.toBlob(res, "image/png", 0.95));
-    const url = URL.createObjectURL(blob);
-
-    // Try to copy to clipboard (best effort)
     try {
-      if (navigator.clipboard && window.ClipboardItem) {
-        await navigator.clipboard.write([ new ClipboardItem({ "image/png": blob }) ]);
+      // Prefer html-to-image, fallback to html2canvas
+      let dataUrl;
+      try {
+        dataUrl = await htmlToImage.toPng(area, {
+          cacheBust: true,
+          pixelRatio: 1.2,
+          filter: (node) => node.id !== 'preview' // ensure iframe excluded
+        });
+      } catch {
+        const canvas = await html2canvas(area, { backgroundColor: "#0f172a", useCORS: true, scale: 1.2 });
+        dataUrl = canvas.toDataURL("image/png", 0.95);
       }
-    } catch { /* ignore */ }
 
-    // Also trigger a download so the image is available to attach in WhatsApp
-    const a = document.createElement('a');
-    a.href = url; a.download = "polycode-screenshot.png";
-    document.body.appendChild(a); a.click(); a.remove();
+      // Make a Blob from dataURL
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
 
-    // Open WhatsApp chat with guidance text
-    const msg = encodeURIComponent("Code & output from Edifica Polycode.\nScreenshot downloaded (and copied to clipboard if supported). Please attach it here.");
-    window.open("https://wa.me/919836313636?text=" + msg, "_blank");
-  } catch (e) {
-    alert("Could not capture the screen. You can still open WhatsApp and paste/attach manually.");
-    window.open("https://wa.me/919836313636", "_blank");
-  } finally {
-    // Restore preview
-    if (hidPreview) {
-      preview.style.display = 'block';
-      if (placeholder) placeholder.remove();
+      // Try to copy to clipboard (best-effort)
+      try {
+        if (navigator.clipboard && window.ClipboardItem) {
+          await navigator.clipboard.write([ new ClipboardItem({ "image/png": blob }) ]);
+        }
+      } catch {}
+
+      // Also download so user can attach in WhatsApp
+      const a = document.createElement('a');
+      a.href = url; a.download = "polycode-screenshot.png";
+      document.body.appendChild(a); a.click(); a.remove();
+
+      // Open WhatsApp chat with guidance text
+      const msg = encodeURIComponent("Code & output from Edifica Polycode.\nScreenshot downloaded (and copied to clipboard if supported). Please attach it here.");
+      window.open("https://wa.me/919836313636?text=" + msg, "_blank");
+    } catch (e) {
+      alert("Could not capture the screen. You can still open WhatsApp and paste/attach manually.");
+      window.open("https://wa.me/919836313636", "_blank");
+    } finally {
+      if (hidPreview) { preview.style.display = 'block'; if (placeholder) placeholder.remove(); }
     }
   }
-}
-
 </script>
 </body>
 </html>
