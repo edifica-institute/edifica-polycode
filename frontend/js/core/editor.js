@@ -310,4 +310,30 @@ export function switchModelUriForLang(lang) {
 export function getEditor() { return editor; }
 export function getModel()  { return model; }
 
+// Diagnostics helpers (used by java.js etc.)
+export function clearMarkers(owner = 'javac') {
+  if (!model) return;
+  monaco.editor.setModelMarkers(model, owner, []);
+}
+
+export function setMarkers(diags = [], owner = 'javac') {
+  if (!model) return;
+  const markers = diags.map(d => ({
+    message: d.message || String(d),
+    startLineNumber: d.line || 1,
+    startColumn: d.column || 1,
+    endLineNumber: d.endLine || d.line || 1,
+    endColumn: d.endColumn || ((d.column || 1) + 1),
+    severity: /warn/i.test(d.severity)
+      ? monaco.MarkerSeverity.Warning
+      : monaco.MarkerSeverity.Error,
+  }));
+  monaco.editor.setModelMarkers(model, owner, markers);
+
+  if (markers.length && editor) {
+    const m = markers[0];
+    editor.revealLineInCenter(m.startLineNumber);
+    editor.setPosition({ lineNumber: m.startLineNumber, column: m.startColumn });
+  }
+}
 
