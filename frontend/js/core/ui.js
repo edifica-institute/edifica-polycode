@@ -118,26 +118,49 @@ export function initSplitter(){
 
 // ui.js
 // ui.js
-let _libsPromise=null;
-function loadScript(u){return new Promise((res,rej)=>{const s=document.createElement('script');s.src=u;s.async=true;s.onload=()=>res();s.onerror=()=>rej(new Error('Failed '+u));document.head.appendChild(s);});}
-function localUrl(rel){ try{ return new URL(rel, import.meta.url).href; } catch { return rel; } }
+let _libsPromise = null;
+
+function loadScript(url) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = url; s.async = true;
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error('Failed to load ' + url));
+    document.head.appendChild(s);
+  });
+}
+function localUrl(relFromUi) {
+  // ui.js is at /js/core/ui.js ; ../../vendor/... → /vendor/...
+  try { return new URL(relFromUi, import.meta.url).href; }
+  catch { return relFromUi; }
+}
 
 export async function ensureScreenshotLibs(){
-  if (window.html2canvas) return;            // only require html2canvas
+  if (window.html2canvas) return;          // only require html2canvas
   if (_libsPromise) return _libsPromise;
-  _libsPromise = (async ()=>{
-    // REQUIRED (local → CDNs)
+
+  _libsPromise = (async () => {
     const candidates = [
-      localUrl('../../vendor/html2canvas.min.js'), // /js/core/ui.js → ../../vendor/...
+      localUrl('../../vendor/html2canvas.min.js'),
       '/vendor/html2canvas.min.js',
       './vendor/html2canvas.min.js',
       'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js',
       'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'
     ];
-    let ok=false;
-    for (const u of candidates){ try{ await loadScript(u); ok=!!window.html2canvas; if(ok) break; }catch{} }
+    let ok = false;
+    for (const u of candidates) {
+      try {
+        console.debug('[polycode] loading', u);
+        await loadScript(u);
+        ok = !!window.html2canvas;
+        if (ok) break;
+      } catch(e) {
+        console.debug('[polycode] failed', u);
+      }
+    }
     if (!ok) throw new Error('Could not load html2canvas (required)');
   })();
+
   return _libsPromise;
 }
 
