@@ -153,7 +153,7 @@ export async function runJava() {
     const term = getTerm();
     ws.onmessage = (e) => {
       const msg = JSON.parse(e.data);
-      if (msg.type === "stdout") term.write("");
+      if (msg.type === "stdout") term.write(msg.data);
       if (msg.type === "exit") {
         term.write(`\r\n\nProcess exited with code ${msg.code}\r\n`);
         setStatus("Finished (exit " + msg.code + ")", msg.code === 0 ? "ok" : "err");
