@@ -1,3 +1,136 @@
+// frontend/js/core/editor.js
+// Single Monaco editor + one shared model (change language/value on the fly)
+
+let monacoRef = null;
+let editor = null;
+let model  = null;
+
+// Keep URIs as strings; parse them only after Monaco is loaded
+const URIS = {
+  java: 'inmemory://polycode/Main.java',
+  html: 'inmemory://polycode/index.html',
+  sql:  'inmemory://polycode/query.sql',
+};
+const MAIN_URI = URIS.java;
+
+export function initMonaco() {
+  return new Promise((resolve) => {
+    if (editor) return resolve(editor); // guard: already initialized
+
+    // Configure AMD loader path to Monaco (make sure loader.js is included in index.html)
+    if (typeof require !== 'undefined' && require.config) {
+      require.config({
+        paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs' }
+      });
+    }
+
+    require(['vs/editor/editor.main'], function () {
+      monacoRef = monaco;
+
+      // Theme (idempotent)
+      try {
+        monacoRef.editor.defineTheme('plunkyDark', {
+          base: 'vs-dark', inherit: true,
+          rules: [
+            { token: 'keyword', foreground: 'C586C0', fontStyle: 'bold' },
+            { token: 'string',  foreground: 'CE9178' },
+            { token: 'number',  foreground: 'B5CEA8' },
+            { token: 'type',    foreground: '4EC9B0' },
+            { token: 'comment', foreground: '6A9955', fontStyle: 'italic' }
+          ],
+          colors: { 'editor.background': '#0b1220' }
+        });
+      } catch {}
+
+      // Reuse/create a single model at MAIN_URI
+      const mainUri = monacoRef.Uri.parse(MAIN_URI);
+      model = monacoRef.editor.getModel(mainUri);
+      if (!model) {
+        model = monacoRef.editor.createModel(
+`// Java starter
+import java.util.*;
+public class Main {
+  public static void main(String[] args){
+    System.out.println("Hello from PolyCode!");
+  }
+}
+`, 'java', mainUri);
+      }
+
+      editor = monacoRef.editor.create(document.getElementById('editor'), {
+        model,
+        theme: 'plunkyDark',
+        automaticLayout: true,
+        minimap: { enabled: false },
+        fontSize: 14,
+      });
+
+      // Ctrl/Cmd + Enter -> dispatch a global run event
+      editor.addCommand(monacoRef.KeyMod.CtrlCmd | monacoRef.KeyCode.Enter, () => {
+        window.dispatchEvent(new CustomEvent('polycode:run'));
+      });
+
+      resolve(editor);
+    });
+  });
+}
+
+// ---------- API used by language modules ------------------------------------
+export function setLanguage(lang) {
+  if (!model || !monacoRef) return;
+  monacoRef.editor.setModelLanguage(model, lang);
+}
+
+export function setValue(text) {
+  if (!model) return;
+  model.setValue(text);
+}
+
+export function getValue() {
+  return model ? model.getValue() : '';
+}
+
+export const getCode = getValue;
+
+export function getModel()  { return model; }
+export function getEditor() { return editor; }
+
+// Diagnostics helpers (used by java.js, etc.)
+export function clearMarkers(owner = 'javac') {
+  if (!model || !monacoRef) return;
+  monacoRef.editor.setModelMarkers(model, owner, []);
+}
+
+export function setMarkers(diags = [], owner = 'javac') {
+  if (!model || !monacoRef) return;
+  const markers = diags.map(d => ({
+    message: d.message || String(d),
+    startLineNumber: d.line || 1,
+    startColumn: d.column || 1,
+    endLineNumber: d.endLine || d.line || 1,
+    endColumn: d.endColumn || ((d.column || 1) + 1),
+    severity: /warn/i.test(d.severity)
+      ? monacoRef.MarkerSeverity.Warning
+      : monacoRef.MarkerSeverity.Error,
+  }));
+  monacoRef.editor.setModelMarkers(model, owner, markers);
+
+  if (markers.length && editor) {
+    const m = markers[0];
+    editor.revealLineInCenter(m.startLineNumber);
+    editor.setPosition({ lineNumber: m.startLineNumber, column: m.startColumn });
+  }
+}
+
+
+
+
+
+
+
+
+
+
 /*let monacoRef = null;
 let model = null;
 let editor = null;
@@ -182,8 +315,7 @@ export function setMarkers(diags = []) {
 /* --- add these three for HTML mode --- 
 export function setLanguage(lang){ monacoRef.editor.setModelLanguage(model, lang); }
 export function setValue(val){ editor.setValue(val); }
-export function getValue(){ return editor.getValue(); }*/
-
+export function getValue(){ return editor.getValue(); }
 
 
 
@@ -338,4 +470,4 @@ export function setMarkers(diags = [], owner = 'javac') {
 }
 
 
-export function getCode() { return editor.getValue(); }
+export function getCode() { return editor.getValue(); } */
