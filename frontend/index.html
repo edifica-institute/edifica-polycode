@@ -40,10 +40,17 @@
           <option value="java" selected>Java</option>
           <option value="html">HTML</option>
           <option value="sql">SQL (MySQL)</option>
+          <option value="web">HTML + CSS + JS</option>
         </select>
       </div>
       <div id="editor"></div>
       <div class="note">Tip: Use <kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+<kbd>Enter</kbd> to Run</div>
+      <!-- new: 3-pane web editors (hidden by default) -->
+<div id="webEditors" class="webgrid" style="display:none">
+  <div id="htmlEd"></div>
+  <div id="cssEd"></div>
+  <div id="jsEd"></div>
+</div>
     </section>
 
     <!-- Splitter (draggable width) -->
