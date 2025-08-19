@@ -52,49 +52,64 @@ function execCapture(cmd, args) {
 // ---- routes ----
 app.post("/api/java/prepare", async (req, res, next) => {
   try {
-    const isMultipart = req.headers["content-type"]?.includes("multipart/form-data");
-    let files = []; let mainClass = "Main";
-    if (isMultipart) {
-      return res.status(400).json({ error: "Use JSON for this minimal server." });
-    } else {
-      ({ files = [], mainClass = "Main" } = req.body || {});
-    }
+    const { files = [], mainClass = "Main" } = req.body || {};
     if (!Array.isArray(files) || files.length === 0) {
       return res.status(400).json({ error: "No files provided" });
     }
 
+    // Create a workspace folder for this job
     const jobId = nanoid();
     const jobDir = path.join(JOB_ROOT, jobId);
     await fs.mkdir(jobDir, { recursive: true });
 
-    await Promise.all(files.map(async f => {
-      const p = path.normalize(f.path);
-      if (p.startsWith("..")) throw new Error("Invalid path");
-      const full = path.join(jobDir, p);
-      await fs.mkdir(path.dirname(full), { recursive: true });
-      await fs.writeFile(full, f.content ?? "", "utf8");
-    }));
+    // Write uploaded files
+    await Promise.all(
+      files.map(async f => {
+        const p = path.normalize(f.path);
+        if (p.startsWith("..")) throw new Error("Invalid path");
+        const full = path.join(jobDir, p);
+        await fs.mkdir(path.dirname(full), { recursive: true });
+        await fs.writeFile(full, f.content ?? "", "utf8");
+      })
+    );
 
-    // NOTE: some base images won't have `fd`; use ls/glob instead.
-    const compileCmd = [
-      "run","--rm","--network","none",
-      "--cpus","1.0","--memory","512m","--pids-limit","256",
-      "-v", `${jobDir}:/workspace:rw`, "-w","/workspace",
-      "oc-java:17","bash","-lc",
-      `shopt -s nullglob; files=( *.java ); \
-       if (( \${#files[@]} )); then javac -Xlint:all -Xdiags:verbose "\${files[@]}" 2>&1; else echo "No .java files"; fi; true`
-    ];
+    let compileLog = "";
+    let diagnostics = [];
+    let ok = false;
 
-    const { stdout: compileLog } = await execCapture("docker", compileCmd);
-    const diagnostics = parseJavac(compileLog);
-    const ok = diagnostics.every(d => d.severity !== "error");
+    if (USE_DOCKER) {
+      // ===== Docker path (what you already had) =====
+      const compileCmd = [
+        "run","--rm","--network","none",
+        "--cpus","1.0","--memory","512m","--pids-limit","256",
+        "-v", `${jobDir}:/workspace:rw`, "-w","/workspace",
+        "oc-java:17","bash","-lc",
+        `shopt -s nullglob; files=( *.java ); if (( \${#files[@]} )); then javac -Xlint:all -Xdiags:verbose "\${files[@]}" 2>&1; else echo "No .java files"; fi; true`
+      ];
+      const out = await execCapture("docker", compileCmd);
+      compileLog = out.stdout;
+      diagnostics = parseJavac(compileLog);
+      ok = diagnostics.every(d => d.severity !== "error");
+    } else {
+      // ===== Local path (no Docker; for Render free tier) =====
+      // Compile directly in the container where Node is running
+      const script = `cd "${jobDir}"; shopt -s nullglob; files=( *.java ); ` +
+                     `if (( \${#files[@]} )); then javac -Xlint:all -Xdiags:verbose "\${files[@]}" 2>&1; else echo "No .java files"; fi; true`;
+      const out = await execCapture("bash", ["-lc", script]);
+      compileLog = out.stdout;
+      diagnostics = parseJavac(compileLog);
+      ok = diagnostics.every(d => d.severity !== "error");
+    }
 
     const token = nanoid();
     SESSIONS.set(token, { jobDir, mainClass });
 
-    res.json({ token, ok, diagnostics, compileLog });
-  } catch (e) { next(e); }
+    return res.json({ token, ok, diagnostics, compileLog });
+  } catch (e) {
+    next(e);
+  }
 });
+
 
 // ---- websocket run ----
 const server = app.listen(8080, () => console.log("Server on :8080"));
@@ -112,14 +127,30 @@ wss.on("connection", (ws, req) => {
   if (!sess) { ws.close(); return; }
   const { jobDir, mainClass } = sess;
 
-  const args = [
-    "run","--rm","-i","--network","none",
-    "--cpus","1.0","--memory","512m","--pids-limit","256",
-    "-v", `${jobDir}:/workspace:rw`, "-w","/workspace",
-    "oc-java:17","bash","-lc", `java ${mainClass}`
-  ];
+  let term;
 
-  const term = spawn("docker", args, { name: "xterm-color", cols: 80, rows: 24 });
+  if (USE_DOCKER) {
+    // ===== Docker run (existing) =====
+    const args = [
+      "run","--rm","-i","--network","none",
+      "--cpus","1.0","--memory","512m","--pids-limit","256",
+      "-v", `${jobDir}:/workspace:rw`, "-w","/workspace",
+      "oc-java:17","bash","-lc", `java ${mainClass}`
+    ];
+    term = spawn("docker", args, { name: "xterm-color", cols: 80, rows: 24 });
+  } else {
+    // ===== Local run (no Docker) =====
+    // Light resource guards: 5s CPU, ~512MB RAM, run from jobDir
+    const runCmd = `ulimit -t 5 -v 524288; java ${mainClass}`;
+    term = spawn("bash", ["-lc", runCmd], {
+      name: "xterm-color",
+      cols: 80,
+      rows: 24,
+      cwd: jobDir,
+      env: process.env
+    });
+  }
+
   term.onData(d => ws.send(JSON.stringify({ type:"stdout", data:d })));
   term.onExit(({ exitCode }) => {
     ws.send(JSON.stringify({ type:"exit", code: exitCode }));
@@ -127,7 +158,8 @@ wss.on("connection", (ws, req) => {
     setTimeout(() => rimraf.sync(jobDir), 10_000);
     SESSIONS.delete(token);
   });
-  ws.on("message", m => {
+
+  ws.on("message", (m) => {
     try {
       const msg = JSON.parse(m.toString());
       if (msg.type === "stdin") term.write(msg.data);
@@ -136,6 +168,7 @@ wss.on("connection", (ws, req) => {
   });
   ws.on("close", () => { try { term.kill(); } catch {} });
 });
+
 
 // ---- error handler ----
 app.use((err, req, res, next) => {
