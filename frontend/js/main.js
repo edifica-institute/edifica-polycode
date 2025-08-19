@@ -313,7 +313,7 @@ async function loadHtmlModule() {
 
 async function switchLang(lang){
   current = lang;
-  const term    = document.getElementById('term');
+  const termBox    = document.getElementById('term');
   const preview = document.getElementById('preview');
   const hint    = document.getElementById('hint');
 
