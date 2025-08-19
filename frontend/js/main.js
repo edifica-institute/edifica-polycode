@@ -287,6 +287,12 @@ window.addEventListener('DOMContentLoaded', async () => {
   fitLayoutHeight();
   setStatus("Ready.");
 
+
+  // Start hidden (no black rectangle)
+  document.getElementById('term')?.classList.add('hidden');
+
+
+  
   // Wire buttons
   document.getElementById('runBtn')?.addEventListener('click', run);
   document.getElementById('stopBtn')?.addEventListener('click', stop);
@@ -312,7 +318,8 @@ async function switchLang(lang){
   const hint    = document.getElementById('hint');
 
   if (lang === 'html') {
-    if (term) term.style.display = 'none';
+    //if (term) term.style.display = 'none';
+    termBox?.classList.add('hidden');
     if (preview) preview.style.display = 'block';
     try {
       if (!htmlMod) htmlMod = await loadHtmlModule();
@@ -335,6 +342,7 @@ async function switchLang(lang){
   }
 
   // Back to Java
+  termBox?.classList.add('hidden');
   javaLang.activate();
 }
 
@@ -348,6 +356,7 @@ async function run(){
 
 function stop(){
   if (current === 'html') { try { htmlMod?.stop?.(); } catch {} return; }
+  document.getElementById('term')?.classList.add('hidden');
   return javaLang.stopJava();
 }
 
