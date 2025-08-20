@@ -89,12 +89,28 @@ async function ensurePyodide(){
   pyodide = await ready;
 
   // Bridge stdout/stderr to xterm
-  const term = getTerminal();
-  window.__term_write = (text) => {
-    const s = String(text ?? '');
-    term?.write(s.replace(/\n/g, '\r\n'));
-    appendOut(s);
-  };
+  // Ensure terminal exists before wiring stdout
+const term = await (async () => {
+  try {
+    // try global first
+    if (window.Terminal && !getTerminal()) {
+      const t = new window.Terminal({ cursorBlink: true, convertEol: true });
+      return t;
+    }
+  } catch {}
+  // fallback to AMD loader path
+  try {
+    const t = await import('../core/terminal.js').then(m => m.initTerminal());
+    return t;
+  } catch { return getTerminal(); }
+})();
+
+window.__term_write = (text) => {
+  const s = String(text ?? '');
+  term && term.write(s.replace(/\n/g, '\r\n'));
+  appendOut(s);
+};
+
 
   await pyodide.runPython(`
 import sys, builtins
