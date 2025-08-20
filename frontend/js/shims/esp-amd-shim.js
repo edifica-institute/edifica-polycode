@@ -1,10 +1,8 @@
 // frontend/js/shims/esp-amd-shim.js
-// Loads the official UMD builds from CDN and exposes normalized modules
-// so code can call `.parse` regardless of ESM/CJS/UMD shape.
+// Robust, no-dup shim. Never defines 'stackframe' or 'error-stack-parser' directly.
 
 (function () {
-  // 1) Point AMD to the *raw* UMD bundles on a CDN.
-  //    We use unique ids (esp-raw, stackframe-raw) to avoid id collisions.
+  // 1) Point to raw UMDs under unique ids (NOT 'stackframe' / 'error-stack-parser')
   require.config({
     paths: {
       'esp-raw':        'https://cdn.jsdelivr.net/npm/error-stack-parser@2.1.4/dist/error-stack-parser.min',
@@ -12,43 +10,71 @@
     }
   });
 
-  // 2) Define small **named** wrapper modules (no anonymous define spam)
-  //    that normalize the export shape.
-  define('esp-wrapper', ['esp-raw'], function (raw) {
-    // Normalization: ESM default, CJS/UMD object, or global
-    var mod = raw && typeof raw.parse === 'function' ? raw
-            : raw && raw.default && typeof raw.default.parse === 'function' ? raw.default
-            : (self.ErrorStackParser && typeof self.ErrorStackParser.parse === 'function' ? self.ErrorStackParser : null);
+  // Helper to safely check if a module id is already defined in Monaco AMD
+  function isDefined(id) {
+    try { return typeof require.defined === 'function' && require.defined(id); } catch { return false; }
+  }
 
-    if (mod) return mod;
-
-    // Fallback: minimal parser that pulls a URL-ish token from stack
-    return {
-      parse: function (err) {
-        var s = (err && err.stack) || '';
-        var lines = s.split('\n');
-        for (var i = 0; i < lines.length; i++) {
-          var m = lines[i].match(/(?:\()?(?:file|https?):\/\/[^\s)]+/);
-          if (m) return [{ fileName: m[0].replace(/[()]/g, '') }];
+  // 2) If 'stackframe' already exists, expose a thin alias wrapper that forwards to it.
+  //    If not, load raw and normalize — BUT under a NEW id.
+  if (!isDefined('stackframe-alias')) {
+    define('stackframe-alias', ['require'], function (req) {
+      return new Promise(function (resolve) {
+        // Case A: some other script already defined 'stackframe' -> forward to it
+        if (isDefined('stackframe')) {
+          req(['stackframe'], function (sf) {
+            // ensure .default points to itself (some callers expect it)
+            var S = sf && sf.default ? sf.default : sf;
+            if (S && !S.default) S.default = S;
+            resolve(S || {});
+          });
+          return;
         }
-        return [];
-      }
-    };
-  });
+        // Case B: load raw UMD and normalize
+        req(['stackframe-raw'], function (raw) {
+          var S = raw && raw.default ? raw.default : raw;
+          if (S && !S.default) S.default = S;
+          resolve(S || {});
+        });
+      });
+    });
+  }
 
-  define('stackframe-wrapper', ['stackframe-raw'], function (raw) {
-    // Ensure .default exists and points to itself (some code expects it)
-    var S = raw && raw.default ? raw.default : raw;
-    if (S && !S.default) S.default = S;
-    return S || {};
-  });
+  // 3) Same approach for error-stack-parser
+  if (!isDefined('esp-alias')) {
+    define('esp-alias', ['require', 'stackframe-alias'], function (req, _sfPromise) {
+      return new Promise(function (resolve) {
+        // If already defined, forward to it
+        if (isDefined('error-stack-parser')) {
+          req(['error-stack-parser'], function (esp) {
+            var mod = esp && typeof esp.parse === 'function' ? esp
+                    : esp && esp.default && typeof esp.default.parse === 'function' ? esp.default
+                    : null;
+            if (mod) return resolve(mod);
+            // fallback noop
+            resolve({ parse: function(){ return []; } });
+          });
+          return;
+        }
+        // Else load raw and normalize
+        req(['esp-raw'], function (raw) {
+          var mod = raw && typeof raw.parse === 'function' ? raw
+                  : raw && raw.default && typeof raw.default.parse === 'function' ? raw.default
+                  : (self.ErrorStackParser && typeof self.ErrorStackParser.parse === 'function' ? self.ErrorStackParser : null);
+          if (mod) return resolve(mod);
+          resolve({ parse: function(){ return []; } });
+        });
+      });
+    });
+  }
 
-  // 3) Map everyone who asks for 'error-stack-parser' or 'stackframe' to our wrappers
+  // 4) Map canonical ids to our alias wrappers (promises)
+  //    Consumers may expect sync; Monaco AMD handles promise modules (thenable).
   require.config({
     map: {
       '*': {
-        'error-stack-parser': 'esp-wrapper',
-        'stackframe': 'stackframe-wrapper'
+        'stackframe':         'stackframe-alias',
+        'error-stack-parser': 'esp-alias'
       }
     }
   });
