@@ -77,6 +77,32 @@
   </div>
 
 <script src="./js/shims/esp-amd-shim.js" defer></script>
+
+
+
+  <!-- HOT PATCH: normalize ErrorStackParser shapes -->
+<script defer>
+  // Make AMD module shape consistent
+  window.require(['error-stack-parser'], function (ESP) {
+    try {
+      if (ESP && !ESP.default) ESP.default = ESP;
+      if (ESP && typeof ESP.parse === 'function' && ESP.default && !ESP.default.parse) {
+        ESP.default.parse = ESP.parse;
+      }
+    } catch (e) {}
+  }, function () {});
+
+  // Also normalize any already-loaded global
+  (function () {
+    var ESP = window.ErrorStackParser;
+    if (ESP && typeof ESP.parse === 'function') {
+      if (!ESP.default || !ESP.default.parse) ESP.default = ESP;
+    }
+  })();
+</script>
+
+
+  
   <!-- Layout & resizing -->
 <script src="./js/ui-layout.js" defer></script>
 <!-- Output-surface toggling & language glue (safe bindings) -->
