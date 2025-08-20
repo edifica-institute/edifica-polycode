@@ -30,7 +30,7 @@ async function loadPythonModule() {
   if (USE_REMOTE_PYTHON) {
     // Try remote; surface a nice status if missing
     try {
-      pyMod = await import('./lang/python_remote.js');
+      pyMod = await import('./lang/python-remote.js');
     } catch (e) {
       setStatus('Python remote runner not found. Using Pyodide instead.', 'err');
       pyMod = await import('./lang/python.js');
