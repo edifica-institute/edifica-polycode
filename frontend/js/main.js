@@ -146,6 +146,7 @@ async function switchLang(lang){
   if (lang === 'web') {
     // HTML+CSS+JS 3-pane
     webLang.activate();
+    setTimeout(() => webLang.layoutEditors?.(), 0);
     if (hint) hint.textContent = 'Edit HTML, CSS & JS. Click Run to render on the right.';
     // Clear any stale preview DOM when entering web
     clearPreview();
