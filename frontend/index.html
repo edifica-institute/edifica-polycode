@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>PolyCode</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+
+  <!-- xterm (CSS + JS) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
+  <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js" defer></script>
+
+  <!-- Monaco AMD loader -->
+  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js" defer></script>
+
+  <!-- Your stylesheet (Step 1 CSS already added here) -->
+  <link rel="stylesheet" href="./css/app.css" />
+</head>
+<body>
+  <header>
+    <img id="logo" src="Logo.png" alt="Edifica" />
+    <div class="title">
+      <h1>PolyCode</h1>
+      <div class="tagline">powered by Edifica</div>
+    </div>
+    <span class="badge">Interactive stdin • File I/O enabled (sandbox)</span>
+  </header>
+
+  <div class="wrap">
+    <!-- LEFT ----------------------------------------------------------->
+    <section class="panel" id="left-panel">
+      <div class="toolbar">
+        <button id="runBtn" class="primary">▶ Run</button>
+        <button id="stopBtn" class="danger">⏹ Stop</button>
+        <span class="spacer"></span>
+        <span class="small">Language:</span>
+        <select id="language-select">
+          <option value="java" selected>Java</option>
+          <option value="html">HTML + CSS + JS</option>
+          <option value="sql">SQL (MySQL)</option>
+        </select>
+      </div>
+
+      <!-- Single-editor (Java/SQL/etc.) -->
+      <div id="left-code">
+        <div id="editor"></div>
+      </div>
+
+      <!-- Three editors for Web mode -->
+      <div id="left-html" style="display:none">
+        <div id="htmlEd"></div>
+        <div id="cssEd"></div>
+        <div id="jsEd"></div>
+      </div>
+    </section>
+
+    <!-- SPLITTER -->
+    <div id="splitter" aria-label="Resize output"></div>
+
+    <!-- RIGHT ---------------------------------------------------------->
+    <section class="panel" id="right-panel">
+      <div id="status" class="status">
+        <span id="statusText">Ready.</span>
+        <span id="spinner" class="spinner" style="display:none">
+          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+        </span>
+      </div>
+
+      <div id="term" class="" style="display:block"></div>
+      <iframe id="preview" style="display:none"></iframe>
+      <div id="sqlout" style="display:none"></div>
+
+      <div class="note" id="hint">
+        Type into the console when your program asks for input (e.g., <code>Scanner</code>).
+      </div>
+    </section>
+  </div>
+
+  <!-- ONE entry point only -->
+  <script type="module" src="./js/main.js"></script>
+</body>
+
+</html>
