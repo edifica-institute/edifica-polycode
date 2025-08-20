@@ -114,7 +114,7 @@ app.post("/api/java/prepare", async (req, res, next) => {
 
 // ---- websocket run ----
 const server = app.listen(8080, () => console.log("Server on :8080"));
-const attachPythonWS = require('./server/python-ws'); // adjust path if needed
+//const attachPythonWS = require('./server/python-ws'); // adjust path if needed
 attachPythonWS(server);
 
 const wss = new WebSocketServer({ noServer: true });
@@ -122,7 +122,7 @@ server.on("upgrade", (req, socket, head) => {
   const url = new URL(req.url, "http://localhost");
   if (url.pathname === "/term") {
     wss.handleUpgrade(req, socket, head, (ws) => wss.emit("connection", ws, req));
-  } else socket.destroy();
+  } //else socket.destroy();
 });
 wss.on("connection", (ws, req) => {
   const url = new URL(req.url, "http://localhost");
