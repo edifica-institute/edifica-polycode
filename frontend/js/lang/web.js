@@ -6,28 +6,10 @@ let inited = false;
 let lastOutput = '';         // for "Send" (we omit real DOM screenshot)
 export function getLastOutput(){ return lastOutput; }
 
-function ensureDOM() {
-  // Create holders only once
-  let wrap = document.getElementById('webEditors');
-  if (wrap) return wrap;
-
-  const leftPanel = document.querySelector('.panel'); // first (editor) panel
-  const holder = document.createElement('div');
-  holder.id = 'webEditors';
-  holder.className = 'webgrid';
-  holder.style.display = 'none';
-  holder.innerHTML = `
-    <div id="htmlEd"></div>
-    <div id="cssEd"></div>
-    <div id="jsEd"></div>
-  `;
-  leftPanel.appendChild(holder);
-  return holder;
-}
-
+// Create editors inside the EXISTING nodes (#htmlEd/#cssEd/#jsEd)
+// Do NOT create a new wrapper; index.html already contains #left-html.
 function ensureEditors(){
   if (inited) return;
-  const wrap = ensureDOM();
 
   htmlEd = monaco.editor.create(document.getElementById('htmlEd'), {
     value: `<!-- HTML -->\n<h2>Hello, Web!</h2>\n<p>Start editing HTML, CSS, and JS.</p>`,
@@ -39,13 +21,7 @@ function ensureEditors(){
   });
 
   cssEd  = monaco.editor.create(document.getElementById('cssEd'), {
-    value: `/* CSS */\nbody
-    {
-    font-family:system-ui;
-    margin:24px;
-    background:#0b1220;
-    color:#e5e7eb
-    }\nh2{color:#93c5fd}`,
+    value: `/* CSS */\nbody{\n  font-family:system-ui;\n  margin:24px;\n  background:#0b1220;\n  color:#e5e7eb;\n}\nh2{color:#93c5fd}`,
     language: 'css',
     theme: 'plunkyDark',
     automaticLayout: true,
@@ -54,8 +30,7 @@ function ensureEditors(){
   });
 
   jsEd   = monaco.editor.create(document.getElementById('jsEd'), {
-    value: `// JS\nconsole.log("JS running…");\ndocument.body.insertAdjacentHTML(
-    'beforeend','<p>JS ✅</p>');`,
+    value: `// JS\nconsole.log("JS running…");\ndocument.body.insertAdjacentHTML('beforeend','<p>JS ✅</p>');`,
     language: 'javascript',
     theme: 'plunkyDark',
     automaticLayout: true,
@@ -71,16 +46,10 @@ function ensureEditors(){
 }
 
 export function activate(){
-  // Ensure three editors exist
+  // Ensure three editors exist (left-pane visibility is controlled by main.js)
   ensureEditors();
 
-  // Show three-pane editor; hide single editor
-  const single = document.getElementById('editor');
-  if (single) single.style.display = 'none';
-  const three = document.getElementById('webEditors');
-  if (three) three.style.display = 'grid';
-
-  // Right panel visibility
+  // Right panel visibility (main.js also switches panes; this is harmless)
   const term = document.getElementById('term');
   const preview = document.getElementById('preview');
   const sqlout = document.getElementById('sqlout');
@@ -102,12 +71,14 @@ export function run(){
   const js   = jsEd.getValue();
 
   setStatus('Rendering…');
-  // Build sandboxed document
+
+  // Build sandboxed document (fresh every run)
   preview.srcdoc =
     `<!DOCTYPE html><html><head><meta charset="utf-8">
+       <meta name="viewport" content="width=device-width,initial-scale=1">
        <style>${css}</style>
      </head><body>${html}
-       <script>${js}<\/script>
+       <script>${(js || '').replace(/<\/script>/gi, '<\\/script>')}<\/script>
      </body></html>`;
 
   lastOutput = 'Rendered HTML + CSS + JS (preview on the right).';
