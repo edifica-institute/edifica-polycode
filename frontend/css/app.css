@@ -232,3 +232,54 @@ select{ background:#0b1220; color:#e5e7eb; border:1px solid #334155; padding:8px
 #term .xterm-viewport::-webkit-scrollbar{ display:none; }
 
 
+/* Fill viewport: header height ~ 64–90px; adjust if yours differs */
+.wrap{
+  display:grid;
+  grid-template-columns: 1fr 8px 1fr; /* left | splitter | right */
+  height: calc(100vh - 90px);
+  min-height: 480px;
+}
+
+/* Each side is a vertical stack */
+.panel{
+  display:flex;
+  flex-direction:column;
+  min-height:0;     /* allow children to shrink */
+  overflow:hidden;
+}
+
+/* Single Monaco editor (Java/SQL) must be allowed to grow */
+#editor{
+  flex:1 1 auto;
+  min-height:0;
+}
+
+/* 3-pane editors for Web */
+#left-html{
+  display:grid;
+  grid-template-rows: 1fr 1fr 1fr;
+  gap:8px;
+  min-height:0;  /* critical: avoid collapsing when container shrinks */
+}
+
+/* Each Monaco div inside the grid must be allowed to fill */
+#left-html > #htmlEd,
+#left-html > #cssEd,
+#left-html > #jsEd{
+  min-height:0;
+}
+
+/* Right side outputs should fill */
+#term,
+#sqlout,
+#preview{
+  flex:1 1 auto;
+  min-height:0;
+}
+
+/* Optional: make iframe always occupy full panel area */
+#preview{
+  width:100%;
+  height:100%;
+  border:0;
+}
