@@ -82,7 +82,7 @@ export function run(){
   const js   = jsEd.getValue();
 
   setStatus('Rendering…');
-showSpinner(true);
+
   
   // hard refresh: blank first
   preview.removeAttribute('src');
@@ -101,7 +101,7 @@ showSpinner(true);
 
   setStatus('Rendered','ok');
   setStatus("Execution Success! (Exit Code - 0)","ok");
-  setTimeout(()=>showSpinner(false), 150);
+  
 }
 
 
