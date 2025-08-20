@@ -13,9 +13,6 @@
   <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
 
   <link rel="stylesheet" href="./css/app.css" />
-
- 
-  
 </head>
 <body>
   <header>
@@ -28,60 +25,67 @@
   </header>
 
   <div class="wrap">
-    <!-- Left: editor -->
+    <!-- LEFT SIDE ------------------------------------------------------->
     <section class="panel">
+
       <div class="toolbar">
         <button id="runBtn" class="primary">▶ Run</button>
         <button id="stopBtn" class="danger">⏹ Stop</button>
-        
+
         <span class="spacer"></span>
         <span class="small">Language:</span>
-        <select id="langSel">
+        <select id="language-select">
           <option value="java" selected>Java</option>
           <option value="html">HTML</option>
-          <option value="sql">SQL (MySQL)</option>
           <option value="web">HTML + CSS + JS</option>
+          <option value="sql">SQL (MySQL)</option>
         </select>
       </div>
-      <div id="editor"></div>
-      <div class="note">Tip: Use <kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+<kbd>Enter</kbd> to Run</div>
-      <!-- new: 3-pane web editors (hidden by default) -->
-<div id="webEditors" class="webgrid" style="display:none">
-  <div id="htmlEd"></div>
-  <div id="cssEd"></div>
-  <div id="jsEd"></div>
-</div>
+
+      <!-- For compiled / single-file langs -->
+      <div id="left-code" style="display:grid">
+        <div id="editor"></div>
+        <div class="note">Tip: Use <kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+<kbd>Enter</kbd> to Run</div>
+      </div>
+
+      <!-- For HTML+CSS+JS mode -->
+      <div id="left-html" style="display:none">
+        <div id="htmlEd"></div>
+        <div id="cssEd"></div>
+        <div id="jsEd"></div>
+      </div>
+
     </section>
 
-    <!-- Splitter (draggable width) -->
+    <!-- SPLITTER -->
     <div id="splitter" aria-label="Resize output"></div>
 
-    <!-- Right: output -->
+    <!-- RIGHT SIDE ------------------------------------------------------>
     <section class="panel">
       <div id="status" class="status">
         <span id="statusText">Ready.</span>
-        <!-- spinner -->
         <span id="spinner" class="spinner" style="display:none">
           <span class="dot"></span><span class="dot"></span><span class="dot"></span>
         </span>
       </div>
-      <div id="term"></div>
-      <iframe id="preview" style="display:none"
+
+      <!-- Terminal (default) -->
+      <div id="term" style="display:block"></div>
+
+      <!-- HTML Preview -->
+      <iframe id="preview" style="display:none; width:100%; height:100%; border:0"
               sandbox="allow-scripts allow-forms allow-modals allow-popups"
               referrerpolicy="no-referrer"></iframe>
+
+      <!-- SQL Output -->
+      <div id="sqlout" style="display:none"></div>
+
       <div class="note" id="hint">
         Type into the console when your program asks for input (e.g., <code>Scanner</code>).
       </div>
-      <div id="sqlout" style="display:none"></div>
     </section>
   </div>
 
   <script type="module" src="./js/main.js"></script>
 </body>
 </html>
-
-
-
-
-
-
