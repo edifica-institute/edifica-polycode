@@ -1,4 +1,4 @@
-// server/python-ws.js (ESM)
+// server/python-ws.js
 import { WebSocketServer } from 'ws';
 import pty from 'node-pty';
 import { tmpdir } from 'node:os';
@@ -6,13 +6,12 @@ import { join } from 'node:path';
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 
-export default function attachPythonWS(server) {
-  console.log('[PY-WS] Attaching /python WebSocket…');   // DEBUG
-
-  const wss = new WebSocketServer({ server, path: '/python' });
+export function createPythonWSS() {
+  // noServer so we can route in index.js
+  const wss = new WebSocketServer({ noServer: true });
 
   wss.on('connection', (ws) => {
-    console.log('[PY-WS] Client connected');            // DEBUG
+    console.log('[PY-WS] Client connected');
 
     let proc = null;
     let workDir = null;
@@ -22,7 +21,7 @@ export default function attachPythonWS(server) {
       if (killTimer) { clearTimeout(killTimer); killTimer = null; }
       try { proc?.kill(); } catch {}
       proc = null;
-      if (workDir) rm(workDir, { recursive: true, force: true }).catch(()=>{});
+      if (workDir) { rm(workDir, { recursive: true, force: true }).catch(() => {}); }
       workDir = null;
     };
 
@@ -36,10 +35,12 @@ export default function attachPythonWS(server) {
           const file = join(workDir, 'main.py');
           await writeFile(file, String(msg.code ?? ''), 'utf8');
 
+          // -u for unbuffered output (interactive)
           proc = pty.spawn('python3', ['-u', file], {
             name: 'xterm-color',
             cols: 120, rows: 30,
-            cwd: workDir, env: process.env,
+            cwd: workDir,
+            env: process.env,
           });
 
           ws.send(JSON.stringify({ type: 'status', message: 'started' }));
@@ -78,4 +79,6 @@ export default function attachPythonWS(server) {
   });
 
   wss.on('error', (e) => console.log('[PY-WS] WSS error', e?.message || e));
+
+  return wss;
 }
