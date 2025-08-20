@@ -1,4 +1,4 @@
-// server/python-ws.js  (ESM)
+// server/python-ws.js (ESM)
 import { WebSocketServer } from 'ws';
 import pty from 'node-pty';
 import { tmpdir } from 'node:os';
@@ -7,10 +7,13 @@ import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 
 export default function attachPythonWS(server) {
-  // WebSocket path will be wss://<host>/python
+  console.log('[PY-WS] Attaching /python WebSocket…');   // DEBUG
+
   const wss = new WebSocketServer({ server, path: '/python' });
 
   wss.on('connection', (ws) => {
+    console.log('[PY-WS] Client connected');            // DEBUG
+
     let proc = null;
     let workDir = null;
     let killTimer = null;
@@ -19,32 +22,24 @@ export default function attachPythonWS(server) {
       if (killTimer) { clearTimeout(killTimer); killTimer = null; }
       try { proc?.kill(); } catch {}
       proc = null;
-      if (workDir) {
-        // remove temp folder (ignore errors)
-        rm(workDir, { recursive: true, force: true }).catch(() => {});
-        workDir = null;
-      }
+      if (workDir) rm(workDir, { recursive: true, force: true }).catch(()=>{});
+      workDir = null;
     };
 
     ws.on('message', async (raw) => {
-      let msg;
-      try { msg = JSON.parse(raw.toString()); } catch { return; }
+      let msg; try { msg = JSON.parse(raw.toString()); } catch { return; }
 
       if (msg.type === 'run') {
         await cleanup();
-
         try {
-          // Create a fresh temp dir and write main.py
           workDir = await mkdtemp(join(tmpdir(), `py-${randomUUID()}-`));
           const file = join(workDir, 'main.py');
           await writeFile(file, String(msg.code ?? ''), 'utf8');
 
-          // -u (unbuffered) so prints show immediately
           proc = pty.spawn('python3', ['-u', file], {
             name: 'xterm-color',
             cols: 120, rows: 30,
-            cwd: workDir,
-            env: process.env,
+            cwd: workDir, env: process.env,
           });
 
           ws.send(JSON.stringify({ type: 'status', message: 'started' }));
@@ -58,9 +53,7 @@ export default function attachPythonWS(server) {
             cleanup();
           });
 
-          // safety timeout (tune)
           killTimer = setTimeout(() => { try { proc.kill(); } catch {} }, 15000);
-
         } catch (e) {
           ws.send(JSON.stringify({ type: 'stderr', data: 'Spawn error: ' + (e?.message || e) }));
           ws.send(JSON.stringify({ type: 'exit', code: 1 }));
@@ -80,7 +73,9 @@ export default function attachPythonWS(server) {
       }
     });
 
-    ws.on('close', () => { cleanup(); });
-    ws.on('error', () => { cleanup(); });
+    ws.on('close', () => { console.log('[PY-WS] Client closed'); cleanup(); });
+    ws.on('error', (e) => { console.log('[PY-WS] WS error', e?.message || e); cleanup(); });
   });
+
+  wss.on('error', (e) => console.log('[PY-WS] WSS error', e?.message || e));
 }
