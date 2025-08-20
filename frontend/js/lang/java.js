@@ -1,84 +1,8 @@
-/*import { API_BASE, WS_BASE } from '../config.js';
-import { setStatus } from '../core/ui.js';
-import { getTerm, clearTerm } from '../core/terminal.js';
-import { getCode, clearMarkers, setMarkers } from '../core/editor.js';
-
-let ws = null;
-
-export async function runJava() {
-  try {
-    setStatus("Compiling…");
-    clearMarkers();
-    clearTerm();
-
-    const files = [{ path: "Main.java", content: getCode() }];
-
-    const res = await fetch(API_BASE + "/api/java/prepare", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mainClass: "Main", files })
-    });
-
-    if (!res.ok) {
-      let msg = "";
-      try { msg = await res.text(); } catch {}
-      setStatus(`Compile request failed (${res.status}) ${msg ? "– " + msg : ""}`, "err");
-      return;
-    }
-
-    const data = await res.json();
-
-    if (!data.ok) {
-      setMarkers(data.diagnostics || []);
-      setStatus("Compilation failed – see red underlines.", "err");
-      // If you want the raw compile log in the terminal:
-      // if (data.compileLog) getTerm().write(data.compileLog);
-      return;
-    }
-
-    setStatus("Running (interactive)…", "ok");
-
-    // WS same-origin: if WS_BASE is "", use relative URL "/term?token=..."
-    const wsUrl = (WS_BASE ? WS_BASE : "") + "/term?token=" + encodeURIComponent(data.token);
-    ws = new WebSocket(wsUrl);
-
-    const term = getTerm();
-    ws.onmessage = (e) => {
-      const msg = JSON.parse(e.data);
-      if (msg.type === "stdout") term.write(msg.data);
-      if (msg.type === "exit") {
-        term.write(`\r\n\nProcess exited with code ${msg.code}\r\n`);
-        setStatus("Finished (exit " + msg.code + ")", msg.code === 0 ? "ok" : "err");
-        ws = null;
-      }
-    };
-    ws.onclose = () => { ws = null; };
-    term.onData(d => { if (ws) ws.send(JSON.stringify({ type:"stdin", data:d })) });
-
-  } catch (err) {
-    setStatus("Network error – cannot reach compiler backend.", "err");
-    console.error(err);
-  }
-}
-
-export function stopJava() {
-  if (ws) { try { ws.close(); } catch(e){} ws = null; }
-  setStatus("Stopped.", "err");
-}
-*/
-
-
-
-
-
 // js/lang/java.js
 import { API_BASE, WS_BASE } from '../config.js';
 import { setStatus, showSpinner } from '../core/ui.js';
-import { getTerm, clearTerm } from '../core/terminal.js';
+import { attachInput, detachInput, clearTerminal, getTerminal as getTerm } from '../core/terminal.js';
 import { getCode, clearMarkers, setMarkers, setLanguage, setValue } from '../core/editor.js';
-
-
-
 
 let ws = null;
 
@@ -100,7 +24,7 @@ public class Main
 `;
 
 export function activate(){
-  // Show terminal, hide preview
+  // Show terminal, hide preview (main.js also ensures this; harmless redundancy)
   const termEl = document.getElementById('term');
   const preview = document.getElementById('preview');
   if (termEl) termEl.style.display = 'block';
@@ -119,9 +43,9 @@ export function activate(){
 export async function runJava() {
   try {
     setStatus("Compiling…");
-    showSpinner(true);    
+    showSpinner(true);
     clearMarkers();
-    clearTerm();
+    clearTerminal(true); // full reset, silent
 
     const files = [{ path: "Main.java", content: getCode() }];
 
@@ -132,10 +56,9 @@ export async function runJava() {
     });
 
     if (!res.ok) {
-      
       let msg = ""; try { msg = await res.text(); } catch {}
       setStatus(`Compile request failed (${res.status}) ${msg ? "– " + msg : ""}`, "err");
-       showSpinner(false); 
+      showSpinner(false);
       return;
     }
 
@@ -144,7 +67,7 @@ export async function runJava() {
     if (!data.ok) {
       setMarkers(data.diagnostics || []);
       setStatus("Compilation failed – see red underlines.", "err");
-       showSpinner(false); 
+      showSpinner(false);
       return;
     }
 
@@ -154,33 +77,43 @@ export async function runJava() {
     ws = new WebSocket(wsUrl);
 
     const term = getTerm();
+
+    // Attach EXACTLY ONE input handler for this run
+    attachInput((d) => { if (ws) ws.send(JSON.stringify({ type: "stdin", data: d })); });
+
     ws.onmessage = (e) => {
       const msg = JSON.parse(e.data);
-      //if (msg.type === "stdout") term.write(msg.data);
       if (msg.type === "stdout") {
-    const filtered = msg.data.replace(/^Picked up JAVA_TOOL_OPTIONS:.*\r?\n?/mg, "");
-    term.write(filtered);
-  }
+        // Filter noisy JAVA_TOOL_OPTIONS line if present
+        const filtered = msg.data.replace(/^Picked up JAVA_TOOL_OPTIONS:.*\r?\n?/mg, "");
+        term.write(filtered);
+      }
       if (msg.type === "exit") {
         term.write(`\r\n\nProcess exited with code ${msg.code}\r\n`);
         setStatus("Execution Success! (Exit Code - " + msg.code + ")", msg.code === 0 ? "ok" : "err");
-         showSpinner(false); 
+        showSpinner(false);
+        try { ws.close(); } catch {}
         ws = null;
+        detachInput(); // IMPORTANT: prevent stacking handlers
       }
     };
-    ws.onclose = () => { ws = null; };
-    term.onData(d => { if (ws) ws.send(JSON.stringify({ type:"stdin", data:d })) });
+
+    ws.onclose = () => {
+      ws = null;
+      detachInput(); // in case close happens before exit
+    };
 
   } catch (err) {
     setStatus("Network error – cannot reach compiler backend.", "err");
-     showSpinner(false); 
+    showSpinner(false);
     console.error(err);
+    detachInput();
   }
 }
 
 export function stopJava() {
   if (ws) { try { ws.close(); } catch(e){} ws = null; }
+  detachInput(); // ensure next run doesn't stack
   setStatus("Stopped.","err");
-   showSpinner(false); 
+  showSpinner(false);
 }
-
