@@ -110,59 +110,82 @@ app.post("/api/java/prepare", async (req, res, next) => {
   }
 });
 
-// --------------- websockets --------------
-const PORT = Number(process.env.PORT) || 8080;     // ✅ listen on Render’s PORT
+// ---- websocket run ----
+import { createPythonWSS } from './python-ws.js';   // top of file or here
+
+import pty from 'node-pty';                         // ensure ESM import for java PTY too
+const { spawn } = pty;
+
+const PORT = Number(process.env.PORT) || 8080;
 const server = app.listen(PORT, () => {
-  console.log("Server on :", PORT);
+  console.log('Server on :', PORT);
 });
 
-// Python WS at /python
-attachPythonWS(server);
+// Create WS endpoints (noServer), then route manually
+const pyWSS   = createPythonWSS();
+const javaWSS = new WebSocketServer({ noServer: true });
 
-// Java WS at /term (no manual server.on('upgrade'))
-const javaWSS = new WebSocketServer({ server, path: "/term" });
+// Debug: see every upgrade with its path
+server.on('upgrade', (req, socket, head) => {
+  const { pathname } = new URL(req.url, 'http://localhost');
+  console.log('[UPGRADE]', pathname);
 
-javaWSS.on("connection", (ws, req) => {
-  const url = new URL(req.url, "http://localhost");
-  const token = url.searchParams.get("token");
+  if (pathname === '/python') {
+    pyWSS.handleUpgrade(req, socket, head, (ws) => pyWSS.emit('connection', ws, req));
+    return;
+  }
+  if (pathname === '/term') {
+    javaWSS.handleUpgrade(req, socket, head, (ws) => javaWSS.emit('connection', ws, req));
+    return;
+  }
+  socket.destroy();
+});
+
+// Java terminal session logic
+const SESSIONS = SESSIONS || new Map(); // keep your existing SESSIONS map
+javaWSS.on('connection', (ws, req) => {
+  const url = new URL(req.url, 'http://localhost');
+  const token = url.searchParams.get('token');
   const sess = SESSIONS.get(token);
   if (!sess) { ws.close(); return; }
+
   const { jobDir, mainClass } = sess;
 
   let term;
   if (USE_DOCKER) {
     const args = [
-      "run","--rm","-i","--network","none",
-      "--cpus","1.0","--memory","512m","--pids-limit","256",
-      "-v", `${jobDir}:/workspace:rw`, "-w","/workspace",
-      "oc-java:17","bash","-lc", `java ${mainClass}`
+      'run','--rm','-i','--network','none',
+      '--cpus','1.0','--memory','512m','--pids-limit','256',
+      '-v', `${jobDir}:/workspace:rw`, '-w','/workspace',
+      'oc-java:17','bash','-lc', `java ${mainClass}`
     ];
-    term = spawn("docker", args, { name: "xterm-color", cols: 80, rows: 24 });
+    term = spawn('docker', args, { name: 'xterm-color', cols: 80, rows: 24 });
   } else {
     const JAVA_OPTS = process.env.JAVA_TOOL_OPTIONS
-      || "-Xms32m -Xmx128m -XX:MaxMetaspaceSize=64m -XX:+UseSerialGC -Xss512k";
+      || '-Xms32m -Xmx128m -XX:MaxMetaspaceSize=64m -XX:+UseSerialGC -Xss512k';
     const runCmd = `ulimit -t 5; cd "${jobDir}"; java ${JAVA_OPTS} ${mainClass}`;
-    term = spawn("bash", ["-lc", runCmd], {
-      name: "xterm-color", cols: 80, rows: 24, cwd: jobDir, env: process.env
+    term = spawn('bash', ['-lc', runCmd], {
+      name: 'xterm-color', cols: 80, rows: 24, cwd: jobDir, env: process.env
     });
   }
 
-  term.onData(d => ws.send(JSON.stringify({ type:"stdout", data:d })));
+  term.onData(d => ws.send(JSON.stringify({ type: 'stdout', data: d })));
   term.onExit(({ exitCode }) => {
-    ws.send(JSON.stringify({ type:"exit", code: exitCode }));
+    ws.send(JSON.stringify({ type: 'exit', code: exitCode }));
     ws.close();
     setTimeout(() => fssync.rmSync(jobDir, { recursive: true, force: true }));
     SESSIONS.delete(token);
   });
 
-  ws.on("message", (m) => {
+  ws.on('message', (m) => {
     try {
       const msg = JSON.parse(m.toString());
-      if (msg.type === "stdin") term.write(msg.data);
-      if (msg.type === "resize") term.resize(msg.cols || 80, msg.rows || 24);
+      if (msg.type === 'stdin')  term.write(msg.data);
+      if (msg.type === 'resize') term.resize(msg.cols || 80, msg.rows || 24);
     } catch {}
   });
-  ws.on("close", () => { try { term.kill(); } catch {} });
+  ws.on('close',   () => { try { term.kill(); } catch {} });
+  ws.on('error',   () => { try { term.kill(); } catch {} });
 });
 
 // --------------- errors ------------------
