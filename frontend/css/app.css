@@ -353,3 +353,52 @@ select{ background:#0b1220; color:#e5e7eb; border:1px solid #334155; padding:8px
   height: 100%;
   cursor: ew-resize;
 }
+
+
+
+
+
+/* left/right container sizing */
+.wrap{
+  display:grid;
+  grid-template-columns: 1fr 8px 1fr;    /* left | splitter | right */
+  height: calc(100vh - 90px);
+  min-height: 480px;
+}
+.panel{
+  display:flex;
+  flex-direction:column;
+  min-height:0;
+  overflow:hidden;
+}
+
+/* SINGLE editor (Java/SQL/etc.) */
+#left-code{
+  display:flex;              /* one stack, not columns */
+  flex:1 1 auto;
+  min-height:0;
+}
+#left-code > #editor{
+  flex:1 1 auto;
+  min-height:0;
+}
+
+/* THREE editors (Web mode only) */
+#left-html{
+  display:none;              /* hidden by default; JS toggles this */
+  grid-template-rows: 1fr 1fr 1fr;
+  gap:8px;
+  min-height:0;
+}
+#left-html > #htmlEd,
+#left-html > #cssEd,
+#left-html > #jsEd{
+  min-height:0;
+}
+
+/* right outputs fill */
+#term, #sqlout, #preview{
+  flex:1 1 auto;
+  min-height:0;
+}
+#preview{ width:100%; height:100%; border:0; }
