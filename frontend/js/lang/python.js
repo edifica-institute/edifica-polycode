@@ -86,7 +86,7 @@ export async function run(){
     const term = getTerminal();
     const msg = (err && err.message) ? err.message : String(err);
     term?.write(('\r\n' + msg + '\r\n').replace(/\n/g, '\r\n'));
-    appendOut('\n' + msg + '\n');
+    appendOut('\n' + msg + 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n');
     setStatus('Python error', 'err');
   }
 }
