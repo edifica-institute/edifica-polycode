@@ -7,14 +7,16 @@
 
   <!-- xterm (CSS + JS) -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
-  <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js" defer></script>
 
   <!-- Monaco AMD loader -->
-  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js" defer></script>
 
+  <!-- Your stylesheet (Step 1 CSS already added here) -->
   <link rel="stylesheet" href="./css/app.css" />
 </head>
 <body>
+  <!-- Header -->
   <header>
     <img id="logo" src="Logo.png" alt="Edifica" />
     <div class="title">
@@ -24,68 +26,86 @@
     <span class="badge">Interactive stdin • File I/O enabled (sandbox)</span>
   </header>
 
-  <div class="wrap">
-    <!-- LEFT SIDE ------------------------------------------------------->
-    <section class="panel">
+  <!-- Toolbar -->
+  <div class="toolbar" style="margin:12px 12px 0;">
+    <button id="runBtn" class="primary">▶ Run</button>
+    <button id="stopBtn" class="danger">⏹ Stop</button>
 
-      <div class="toolbar">
-        <button id="runBtn" class="primary">▶ Run</button>
-        <button id="stopBtn" class="danger">⏹ Stop</button>
+    <span class="spacer"></span>
+    <span class="small">Language:</span>
+    <select id="language-select">
+      <option value="web">HTML + CSS + JS</option>
+      <option value="html">HTML</option>
+      <option value="java" selected>Java</option>
+      <option value="sql">SQL (MySQL)</option>
+    </select>
+  </div>
 
-        <span class="spacer"></span>
-        <span class="small">Language:</span>
-        <select id="language-select">
-          <option value="java" selected>Java</option>
-          <option value="html">HTML</option>
-          <option value="web">HTML + CSS + JS</option>
-          <option value="sql">SQL (MySQL)</option>
-        </select>
+  <!-- ===== Workspace (LEFT: editors | RIGHT: output) ===== -->
+  <div id="workspace" style="margin:12px;">
+    <!-- LEFT: 3 editor panes + 2 gutters -->
+    <div id="panes">
+      <!-- Pane 1 -->
+      <div class="pane" id="htmlPane">
+        <!-- Single-file editor (Java/SQL/etc) -->
+        <div id="left-code" style="display:grid; height:100%;">
+          <div id="editor" style="height:100%;"></div>
+          <div class="note">Tip: Use <kbd>Ctrl</kbd>/<kbd>Cmd</kbd> + <kbd>Enter</kbd> to Run</div>
+        </div>
+
+        <!-- HTML editor (for Web modes) -->
+        <div id="htmlEd" style="display:none; height:100%;"></div>
       </div>
 
-      <!-- For compiled / single-file langs -->
-      <div id="left-code" style="display:grid">
-        <div id="editor"></div>
-        <div class="note">Tip: Use <kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+<kbd>Enter</kbd> to Run</div>
+      <!-- Gutter -->
+      <div class="gutter" data-gutter="1" aria-hidden="true"></div>
+
+      <!-- Pane 2: CSS -->
+      <div class="pane" id="cssPane">
+        <div id="cssEd" style="display:none; height:100%;"></div>
       </div>
 
-      <!-- For HTML+CSS+JS mode -->
-      <div id="left-html" style="display:none">
-        <div id="htmlEd"></div>
-        <div id="cssEd"></div>
-        <div id="jsEd"></div>
+      <!-- Gutter -->
+      <div class="gutter" data-gutter="2" aria-hidden="true"></div>
+
+      <!-- Pane 3: JS -->
+      <div class="pane" id="jsPane">
+        <div id="jsEd" style="display:none; height:100%;"></div>
       </div>
+    </div>
 
-    </section>
-
-    <!-- SPLITTER -->
-    <div id="splitter" aria-label="Resize output"></div>
-
-    <!-- RIGHT SIDE ------------------------------------------------------>
-    <section class="panel">
-      <div id="status" class="status">
+    <!-- RIGHT: Output column (resizable) -->
+    <div id="outputWrapper">
+      <div id="status" class="status" style="position:relative; z-index:2;">
         <span id="statusText">Ready.</span>
         <span id="spinner" class="spinner" style="display:none">
           <span class="dot"></span><span class="dot"></span><span class="dot"></span>
         </span>
       </div>
 
-      <!-- Terminal (default) -->
-      <div id="term" style="display:block"></div>
-
-      <!-- HTML Preview -->
-      <iframe id="preview" style="display:none; width:100%; height:100%; border:0"
+      <!-- Three mutually exclusive output surfaces -->
+      <iframe id="preview"
+              style="display:none; position:absolute; inset:0; width:100%; height:100%; border:0;"
               sandbox="allow-scripts allow-forms allow-modals allow-popups"
               referrerpolicy="no-referrer"></iframe>
 
-      <!-- SQL Output -->
-      <div id="sqlout" style="display:none"></div>
+      <div id="term"
+           style="display:block; position:absolute; inset:0; width:100%; height:100%; overflow:hidden;"></div>
 
-      <div class="note" id="hint">
-        Type into the console when your program asks for input (e.g., <code>Scanner</code>).
-      </div>
-    </section>
+      <div id="sqlout"
+           style="display:none; position:absolute; inset:0; width:100%; height:100%; overflow:auto; padding:12px;"></div>
+
+      <!-- Drag handle for the output column -->
+      <div id="outputResizer" title="Drag to resize"></div>
+    </div>
   </div>
 
-  <script type="module" src="./js/main.js"></script>
+  <!-- ===== Final include order (bottom of index.html) ===== -->
+  <!-- 1) UI layout & resizing (gutter + output resizer) -->
+  <script src="./frontend/js/ui-layout.js" defer></script>
+  <!-- 2) Runner bridge (output surface toggling + language switching + safe Run/Stop bindings) -->
+  <script src="./frontend/js/runner-bridge.js" defer></script>
+  <!-- 3) Your existing app logic (Monaco init, Java/SQL runners, etc.) -->
+  <script type="module" src="./frontend/js/main.js"></script>
 </body>
 </html>
