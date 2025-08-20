@@ -5,7 +5,7 @@ import { initTerminal, clearTerminal } from './core/terminal.js';
 import {
   setStatus, initSplitter, fitLayoutHeight,
   uploadSubmission, copyTextToClipboard, openWhatsApp,
-  clearPreview, clearSqlOutput
+  clearPreview, clearSqlOutput, renderSubmissionPNG
 } from './core/ui.js';
 
 import * as javaLang from './lang/java.js';
@@ -137,60 +137,7 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.arcTo(x,   y,   x+w, y,   r);
   ctx.closePath();
 }
-async function renderSubmissionPNG({ codeText, outputText, lang='JAVA', student='' }) {
-  const W = 1400, H = 900;
-  const pad = 28, gutter = 18;
-  const leftW = Math.floor((W - pad*2 - gutter) * 0.58);
-  const rightW = (W - pad*2 - gutter) - leftW;
 
-  const canvas = document.createElement('canvas');
-  canvas.width = W; canvas.height = H;
-  const ctx = canvas.getContext('2d');
-
-  // bg + header
-  ctx.fillStyle = '#0b1220'; ctx.fillRect(0,0,W,H);
-  ctx.fillStyle = '#e5e7eb'; ctx.font = '600 22px ui-sans-serif,system-ui,Segoe UI,Roboto,Arial';
-  ctx.fillText('Edifica PolyCode', pad, pad + 22);
-  ctx.font = '12px ui-sans-serif,system-ui,Segoe UI,Roboto,Arial';
-  const ts = new Date().toLocaleString();
-  ctx.fillStyle = '#93c5fd'; ctx.fillText(`Language: ${lang}`, pad, pad + 22 + 18);
-  ctx.fillStyle = '#9ca3af'; ctx.fillText(`Student: ${student || '—'}    •    ${ts}`, pad + 160, pad + 22 + 18);
-
-  // panels
-  const top = pad + 22 + 18 + 18;
-  const panelH = H - top - pad;
-
-  // code panel
-  ctx.save();
-  roundRect(ctx, pad, top, leftW, panelH, 12); ctx.clip();
-  ctx.fillStyle = '#0f172a'; ctx.fillRect(pad, top, leftW, panelH);
-  ctx.fillStyle = '#334155'; ctx.fillRect(pad, top, leftW, 34);
-  ctx.fillStyle = '#e5e7eb'; ctx.font = '600 13px ui-sans-serif,system-ui,Segoe UI,Roboto,Arial';
-  ctx.fillText('Code', pad + 10, top + 22);
-  ctx.font = '13px ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace';
-  let y = top + 50;
-  y = drawParagraph(ctx, codeText, pad + 12, y, leftW - 24, 18, '#e5e7eb');
-  ctx.restore();
-
-  // output panel
-  ctx.save();
-  const rx = pad + leftW + gutter;
-  roundRect(ctx, rx, top, rightW, panelH, 12); ctx.clip();
-  ctx.fillStyle = '#0f172a'; ctx.fillRect(rx, top, rightW, panelH);
-  ctx.fillStyle = '#334155'; ctx.fillRect(rx, top, rightW, 34);
-  ctx.fillStyle = '#e5e7eb'; ctx.font = '600 13px ui-sans-serif,system-ui,Segoe UI,Roboto,Arial';
-  ctx.fillText('Output', rx + 10, top + 22);
-  ctx.font = '13px ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace';
-  let y2 = top + 50;
-  y2 = drawParagraph(ctx, outputText || '(no output)', rx + 12, y2, rightW - 24, 18, '#e5e7eb');
-  ctx.restore();
-
-  // footer
-  ctx.fillStyle = '#1f2937'; ctx.fillRect(0, H-4, W, 4);
-
-  const blob = await new Promise(res => canvas.toBlob(res, 'image/png', 0.95));
-  return blob;
-}
 
 // ---------------------------------------------------------------------------
 // BOOT
