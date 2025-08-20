@@ -101,6 +101,7 @@ showSpinner(true);
 
   setStatus('Rendered','ok');
   setStatus("Execution Success! (Exit Code - 0)","ok");
+  setTimeout(()=>showSpinner(false), 150);
 }
 
 
