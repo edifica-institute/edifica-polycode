@@ -11,6 +11,9 @@ import {
 import * as javaLang from './lang/java.js';
 import * as sqlLang  from './lang/sql.js';
 import * as webLang  from './lang/web.js';
+import * as pythonLang from './lang/python.js';
+
+
 
 // ---------------------------------------------------------------------------
 // VISIBILITY HELPERS
@@ -29,7 +32,9 @@ function setLanguageUI(lang) {
   const isWeb = (lang === 'web');
   const isHtml = (lang === 'html');
   const isSql = (lang === 'sql');
+const isPy   = (lang === 'python');
 
+  
   const leftCode = document.getElementById('left-code'); // single editor
   const leftHtml = document.getElementById('left-html'); // 3-pane (html/css/js)
 
@@ -43,7 +48,12 @@ function setLanguageUI(lang) {
     showRightPane('preview');
   } else if (isSql) {
     showRightPane('sqlout');
-  } else {
+    
+  } 
+  else if (isPy)  { showRightPane('term');  
+                  }
+  
+  else {
     showRightPane('term'); // Java & others
   }
 }
@@ -52,7 +62,7 @@ function setLanguageUI(lang) {
 // SILENT CLEAR HELPERS
 // ---------------------------------------------------------------------------
 function clearByLanguage(full = false) {
-  if (current === 'java') {
+  if (current === 'java' || current=== 'python') {
     clearTerminal(full);               // xterm (silent)
   } else if (current === 'html' || current === 'web') {
     clearPreview();                    // iframe (silent)
@@ -143,6 +153,13 @@ async function switchLang(lang){
 
   const hint = document.getElementById('hint');
 
+ if (lang === 'python') {
+    pythonLang.activate();
+    if (hint) hint.textContent = 'Use print() / input(). Output appears in the console.';
+    setStatus('Ready.');
+    return;
+  }
+  
   if (lang === 'web') {
     // HTML+CSS+JS 3-pane
     webLang.activate();
@@ -199,6 +216,13 @@ async function run() {
   clearByLanguage(false);
   resetEditClearArming();
 
+
+   if (current === 'python') {
+    document.getElementById('term')?.classList.remove('hidden');
+    showRightPane('term');
+    return pythonLang.run();
+  }
+  
   if (current === 'web')  return webLang.run();
   if (current === 'html') { if (!htmlMod) htmlMod = await loadHtmlModule(); return htmlMod.run(); }
   if (current === 'sql')  return sqlLang.run();
@@ -216,7 +240,9 @@ function stop() {
   if (current === 'web')  return webLang.stop();
   if (current === 'html') { try { htmlMod?.stop?.(); } catch {} return; }
   if (current === 'sql')  return sqlLang.stop();
-
+if (current === 'python') {
+    return pythonLang.stop();
+  }
   // Java
   document.getElementById('term')?.classList.add('hidden');
   return javaLang.stopJava();
@@ -246,7 +272,9 @@ async function sendToWhatsApp() {
     } else if (lang === 'WEB') {
       outputText = '(HTML+CSS+JS preview omitted)';
     }
-
+else if (lang === 'PYTHON') {
+  outputText = (pythonLang.getLastOutput?.() || '').trim();
+}
     // Student identity (remembered once)
     const key = 'polycode_student';
     let student = localStorage.getItem(key) || '';
