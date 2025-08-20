@@ -36,4 +36,61 @@ async function ensurePyodide(){
   };
 
   await pyodide.runPython(`
-import sys,
+import sys, builtins
+from js import __term_write as _w
+
+class _W:
+  def write(self, s): _w(s)
+  def flush(self): pass
+
+sys.stdout = _W()
+sys.stderr = _W()
+del _W, _w
+
+# Basic input() support via browser prompt
+from js import window as _win
+builtins.input = lambda prompt="": (_win.prompt(prompt) if _win else "")
+  `);
+
+  return pyodide;
+}
+
+// Starter snippet
+const SAMPLE = `# Python sample
+name = input("Your name: ")
+print("Hello,", name)
+nums = [1,2,3]
+print("Sum:", sum(nums))
+`;
+
+export function activate(){
+  setLanguage('python');     // Monaco syntax
+  setValue(SAMPLE);
+  setStatus('Ready.');
+}
+
+export async function run(){
+  try{
+    await ensurePyodide();
+    clearTerminal(true);
+    lastOut = '';
+
+    const code = getValue();
+    setStatus('Running Python…');
+    // runPythonAsync so we don't block UI
+    await pyodide.runPythonAsync(code);
+    setStatus('Execution Success! (Exit Code - 0)', 'ok');
+  }catch(err){
+    // Show error in terminal & status
+    const term = getTerminal();
+    const msg = (err && err.message) ? err.message : String(err);
+    term?.write(('\r\n' + msg + '\r\n').replace(/\n/g, '\r\n'));
+    appendOut('\n' + msg + '\n');
+    setStatus('Python error', 'err');
+  }
+}
+
+export function stop(){
+  // Pyodide doesn't support force-kill in main thread; we "reset" by reloading on next run if needed.
+  setStatus('Stopped.', 'err');
+}
