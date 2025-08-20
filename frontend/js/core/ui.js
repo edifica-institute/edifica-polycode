@@ -366,19 +366,22 @@ export async function notifyTeacher({ imageUrl, codeUrl, student, lang }) {
 
 
 // frontend/js/core/ui.js
-export function clearPreview(message = 'Output cleared.') {
-  const preview = document.getElementById('preview');
-  if (!preview) return;
-  preview.style.display = 'block';
-  preview.srcdoc = `<!DOCTYPE html><html><body style="font-family:system-ui;background:#0b1220;color:#e5e7eb;margin:20px">${message}</body></html>`;
+export function clearPreview() {
+  const iframe = document.getElementById('preview');
+  if (!iframe) return;
+  const doc = iframe.contentDocument || iframe.contentWindow.document;
+  doc.open();
+  doc.write('<!doctype html><html><head><meta charset="utf-8"></head><body></body></html>');
+  doc.close();
 }
 
-export function clearSqlOutput(message = 'Output cleared.') {
+export function clearSqlOutput() {
   const el = document.getElementById('sqlout');
   if (!el) return;
-  el.style.display = 'block';
-  el.textContent = message;
+  el.innerHTML = ''; // silent
 }
+
+
 
 
 
