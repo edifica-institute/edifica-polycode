@@ -55,7 +55,7 @@ export function initTerminal() {
 
   // keep thin blinking bar even after clicks/focus
   const forceBar = () => {
-    term.setOption('cursorStyle', 'bar');
+    //term.setOption('cursorStyle', 'bar');
     term.setOption('cursorBlink', true);
   };
   term.element?.addEventListener('focusin', forceBar);
