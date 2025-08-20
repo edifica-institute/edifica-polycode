@@ -32,7 +32,8 @@ export function activate(){
   if (term) term.style.display = 'none';
   if (preview) preview.style.display = 'block';
 
-  //const hint = document.getElementById('hint');
+  // define hint (it was referenced but not defined previously)
+  const hint = document.getElementById('hint');
   if (hint) hint.textContent = "Rendering HTML web view according to the code specified";
 }
 
@@ -40,15 +41,21 @@ export async function run(){
   const preview = document.getElementById('preview');
   if (!preview) return;
   setStatus("Rendering HTML…","ok");
- showSpinner(true);      
-  
+  showSpinner(true);
+
   const code = getValue();
   const html = /<html[\s\S]*<\/html>/i.test(code)
     ? code
     : `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Preview</title></head><body>${code}</body></html>`;
+
+  // fresh doc each time
   preview.srcdoc = html;
+
   setStatus("Execution Success! (Exit Code - 0)","ok");
-    setTimeout(()=>showSpinner(false), 150);
+  setTimeout(()=>showSpinner(false), 150);
 }
 
-export function stop(){ setStatus("Stopped.","err");  showSpinner(false);}
+export function stop(){
+  setStatus("Stopped.","err");
+  showSpinner(false);
+}
