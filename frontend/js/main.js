@@ -815,4 +815,5 @@ Image: ${imageUrl}
     alert('Upload failed. Please try again, or paste the links manually.');
   }
 }
+*/
 
