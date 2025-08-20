@@ -41,7 +41,7 @@ export function initTerminal() {
   const forceBar = () => {
     // Keep style as bar (commented in your original); blink on:
     // term.setOption('cursorStyle', 'bar');
-    term.setOption('cursorBlink', true);
+    //term.setOption('cursorBlink', true);
   };
   term.element?.addEventListener('focusin', forceBar);
   term.element?.addEventListener('mousedown', forceBar);
