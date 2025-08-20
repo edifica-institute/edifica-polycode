@@ -57,7 +57,7 @@ function ensureErrorParsers() {
       }
     } catch {} // ignore if this flavour of require doesn't expose .defined
   }
-
+}
   
 
 /* ------------------------------------------------------------------ */
