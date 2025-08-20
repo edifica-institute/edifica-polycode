@@ -84,8 +84,8 @@ export async function run(){
   }catch(err){
     // Show error in terminal & status
     const term = getTerminal();
-    const msg = (err && err.message) ? err.message : String(err);
-    msg = msg + 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+    const msg = ((err && err.message) ? err.message : String(err)) + '+ 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx';
+    
     term?.write(('\r\n' + msg + '\r\n').replace(/\n/g, '\r\n'));
     appendOut('\n' + msg + '\n');
     setStatus('Python error', 'err');
