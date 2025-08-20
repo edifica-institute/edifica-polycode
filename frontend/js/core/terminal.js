@@ -10,13 +10,10 @@ let inputDisposable = null;
 /**
  * Initialize (idempotent). Reuses the same xterm instance if already created.
  */
-/*export function initTerminal() {
+export function initTerminal() {
   if (term) return term;
-   if (!window.Terminal) {
-    throw new Error('xterm not loaded (Terminal is undefined). Make sure xterm.min.js is included before main.js');
-  }
 
-  term = new window.Terminal({
+  term = new Terminal({
     convertEol: true,
     cursorBlink: true,
     cursorStyle: 'bar',
@@ -52,58 +49,8 @@ let inputDisposable = null;
   return term;
 }
 
-/** Accessor 
+/** Accessor */
 export function getTerminal() { return term; }
-
-
-export function clearTerminal(full = false) {
-  if (!term) return;
-  if (full && typeof term.reset === 'function') {
-    term.reset(); // full reset
-  } else {
-    // Clear display without printing any “Output Cleared” text
-    // Using CSI sequences avoids adding a blank line to scrollback.
-    term.write('\x1b[2J\x1b[3J\x1b[H');
-  }
-}*/
-
-
-
-
-export function initTerminal() {
-  if (term) return Promise.resolve(term);
-
-  // If global already present (because you included xterm via <script>), use it
-  if (window.Terminal) {
-    term = new window.Terminal({ cursorBlink: true, convertEol: true });
-    return Promise.resolve(term);
-  }
-
-  // Otherwise, AMD-load xterm on demand (order-independent)
-  return new Promise((resolve, reject) => {
-    if (typeof require !== 'function' || !require.config) {
-      return reject(new Error('AMD loader not available for xterm'));
-    }
-    require.config({
-      paths: { xterm: 'https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min' }
-    });
-    require(['xterm'], (X) => {
-      const TerminalCtor = X && X.Terminal ? X.Terminal : X; // handle UMD shapes
-      term = new TerminalCtor({ cursorBlink: true, convertEol: true });
-      resolve(term);
-    }, (err) => reject(err));
-  });
-}
-
-export function getTerminal() { return term; }
-export function clearTerminal(full = false) {
-  if (!term) return;
-  if (full) term.reset();
-  else term.clear();
-}
-
-
-
 
 /**
  * Attach exactly ONE input handler. If one exists, it is disposed first.
@@ -133,7 +80,16 @@ export function detachInput() {
  *  - clearTerminal()     → clear screen (preserves state/scrollback)
  *  - clearTerminal(true) → reset terminal (clears scrollback + attributes)
  */
-
+export function clearTerminal(full = false) {
+  if (!term) return;
+  if (full && typeof term.reset === 'function') {
+    term.reset(); // full reset
+  } else {
+    // Clear display without printing any “Output Cleared” text
+    // Using CSI sequences avoids adding a blank line to scrollback.
+    term.write('\x1b[2J\x1b[3J\x1b[H');
+  }
+}
 
 /** Optional convenience helpers */
 export function writeToTerminal(text = '') {
