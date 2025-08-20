@@ -78,24 +78,54 @@
   </div>
 
 
+
+
+
+  <!-- (Optional) real UMD globals; skip if you want the minimal stubs only -->
 <script src="https://cdn.jsdelivr.net/npm/stackframe@1.3.4/dist/stackframe.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/error-stack-parser@2.1.4/dist/error-stack-parser.min.js"></script>
 
-<!-- Register AMD shims so Monaco's loader/overlays can require them -->
+<!-- Define AMD shims so the Monaco AMD loader can resolve these modules -->
 <script>
-  (function () {
-    if (typeof define === 'function' && define.amd) {
-      if (window.StackFrame && !window.__stackframe_defined) {
-        define('stackframe', [], function () { return window.StackFrame; });
-        window.__stackframe_defined = true;
-      }
-      if (window.ErrorStackParser && !window.__esp_defined) {
-        define('error-stack-parser', ['stackframe'], function () { return window.ErrorStackParser; });
-        window.__esp_defined = true;
-      }
+  (function registerAmdShims() {
+    function defineOnce(name, deps, factory) {
+      if (typeof define !== 'function' || !define.amd) return false;
+      if (!window.__amd_defs) window.__amd_defs = {};
+      if (window.__amd_defs[name]) return true;
+      try {
+        define(name, deps, factory);
+        window.__amd_defs[name] = 1;
+        return true;
+      } catch { return false; }
     }
+
+    (function waitForAMD() {
+      if (!(typeof define === 'function' && define.amd)) {
+        setTimeout(waitForAMD, 0);
+        return;
+      }
+
+      // stackframe
+      defineOnce('stackframe', [], function () {
+        // real lib (from CDN) if present, else a tiny stub class
+        var SF = window.StackFrame || function StackFrame(){};
+        return { default: SF };          // ESModule shape: module.default
+      });
+
+      // error-stack-parser
+      defineOnce('error-stack-parser', ['stackframe'], function () {
+        var ESP = window.ErrorStackParser || {};
+        var mod = (ESP && ESP.default) ? ESP.default : ESP;
+        if (typeof mod.parse !== 'function') {
+          // safe stub
+          mod = { parse: function(){ return []; } };
+        }
+        return { default: mod };         // ESModule shape: module.default.parse
+      });
+    })();
   })();
 </script>
+
 
 
 
