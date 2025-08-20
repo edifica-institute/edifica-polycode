@@ -58,12 +58,13 @@ function ensureErrorParsers() {
     } catch {} // ignore if this flavour of require doesn't expose .defined
   }
 
-  // If AMD is present and modules are NOT defined, define them
-  if (def) {
-    try { def('stackframe', [], () => window.StackFrame); } catch {}
-    try { def('error-stack-parser', ['stackframe'], () => window.ErrorStackParser); } catch {}
+   // If AMD is present and modules are NOT defined, define them (guarded).
+  // We avoid colliding with our esp-amd-shim mapping.
+  if (def && req && typeof req.defined === 'function') {
+    try { if (!req.defined('stackframe')) def('stackframe', [], () => window.StackFrame); } catch {}
+    try { if (!req.defined('error-stack-parser')) def('error-stack-parser', ['stackframe'], () => window.ErrorStackParser); } catch {}
   }
-}
+
 
 /* ------------------------------------------------------------------ */
 /* 2) Pyodide loader                                                   */
@@ -134,7 +135,7 @@ export function activate(){
   setStatus('Ready.');
 }
 
-/*export async function run(){
+export async function run(){
   try{
     // Make sure parsers are safe BEFORE any error overlay tries to parse
     ensureErrorParsers();
@@ -157,30 +158,12 @@ export function activate(){
     appendOut('\n' + msg + '\n');
     setStatus('Python error', 'err');
   }
-}*/
-
-
-
-
-
-
-export async function run(){
-
-    // Make sure parsers are safe BEFORE any error overlay tries to parse
-    ensureErrorParsers();
-
-    await ensurePyodide();
-    clearTerminal(true);
-    lastOut = '';
-
-    const code = getValue();
-    setStatus('Running Python…');
-
-    await pyodide.runPythonAsync(code);
-
-    setStatus('Execution Success! (Exit Code - 0)', 'ok');
- 
 }
+
+
+
+
+
 
 export function stop(){
   setStatus('Stopped.', 'err');
