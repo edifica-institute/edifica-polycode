@@ -87,48 +87,35 @@
 
 <!-- Define AMD shims so the Monaco AMD loader can resolve these modules -->
 <script>
-/* Robust AMD shims for stackframe & error-stack-parser.
-   Works whether or not CDN globals are present, and guarantees:
-   - require('error-stack-parser').parse is a function
-   - require('error-stack-parser').default.parse is a function
-   - same for stackframe: .default points to itself
+/* Ultra-robust shim for stackframe & error-stack-parser.
+   Guarantees BOTH shapes:
+   - require('…').parse
+   - require('…').default.parse
+   and also sets window globals in case something reads them directly.
 */
 (function () {
+  // ---- Create globals (or stubs) -----------------------------------
+  var StackFrame = window.StackFrame || function StackFrame(props){ if (props) for (var k in props) this[k]=props[k]; };
+  StackFrame.default = StackFrame;  // ESM-like shape
+  window.StackFrame = StackFrame;
+
+  var ErrorStackParser = window.ErrorStackParser || { parse: function(){ return []; } };
+  if (typeof ErrorStackParser.parse !== 'function') {
+    ErrorStackParser.parse = function(){ return []; };
+  }
+  ErrorStackParser.default = ErrorStackParser; // ESM-like shape
+  window.ErrorStackParser = ErrorStackParser;
+
+  // ---- Register AMD modules returning the SAME objects ---------------
   function whenAMD(cb){
     if (typeof define === 'function' && define.amd) cb();
-    else setTimeout(() => whenAMD(cb), 0);
+    else setTimeout(function(){ whenAMD(cb); }, 0);
   }
 
-  whenAMD(function () {
-    // --- stackframe ---------------------------------------------------
-    define('stackframe', [], function () {
-      // Use global if available, else create a tiny constructor stub
-      var SF = window.StackFrame || function StackFrame(props){ if (props) for (var k in props) this[k]=props[k]; };
-      // Guarantee both CJS & ESM shapes
-      SF.default = SF;
-      return SF;
-    });
-
-    // --- error-stack-parser ------------------------------------------
-    define('error-stack-parser', ['stackframe'], function () {
-      var ESP = window.ErrorStackParser;
-
-      // Fallback parser: returns minimal frames if real lib isn't present
-      function fallbackParse(err){
-        var stack = (err && err.stack) ? String(err.stack) : '';
-        return stack.split('\n').slice(1).map(function (line) {
-          return { source: line.trim() };
-        });
-      }
-
-      var api = (ESP && typeof (ESP.parse || (ESP.default && ESP.default.parse)) === 'function')
-        ? (ESP.parse ? ESP : ESP.default)     // prefer the object that actually has .parse
-        : { parse: fallbackParse };
-
-      // Guarantee both require('…').parse and require('…').default.parse
-      api.default = api;
-      return api;
-    });
+  whenAMD(function(){
+    // Return the plain object/function (AMD consumers) …
+    try { define('stackframe', [], function(){ return window.StackFrame; }); } catch(e){}
+    try { define('error-stack-parser', ['stackframe'], function(){ return window.ErrorStackParser; }); } catch(e){}
   });
 })();
 </script>
