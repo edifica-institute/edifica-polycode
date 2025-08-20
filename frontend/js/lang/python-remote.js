@@ -23,8 +23,13 @@ export async function run() {
     const code = getValue();
 
     // For simplicity, collect stdin once (remote APIs aren't interactive)
-    let stdin = '';
-    try { stdin = window.prompt('Optional stdin (will be fed once):', '') || ''; } catch {}
+   // AFTER — supports \n for newlines
+let stdin = '';
+try {
+  const raw = window.prompt('Optional stdin (use \\n for new lines):', '') || '';
+  stdin = raw.replaceAll('\\n', '\n');
+} catch {}
+
 
     // Piston execute API
     const resp = await fetch('https://emkc.org/api/v2/piston/execute', {
