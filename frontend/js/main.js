@@ -20,7 +20,7 @@ import * as webLang  from './lang/web.js';
    false -> use in-browser Pyodide  (./lang/python.js)  [default, stable]
    true  -> use remote sandbox      (./lang/python_remote.js)
 ============================================================================ */
-const USE_REMOTE_PYTHON = false;
+const USE_REMOTE_PYTHON = true;
 
 // Cache for the chosen Python module once loaded
 let pyMod = null;
