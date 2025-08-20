@@ -1,35 +1,67 @@
 // frontend/js/lang/python.js
 import { setLanguage, setValue, getValue } from '../core/editor.js';
 import { setStatus } from '../core/ui.js';
-import { clearTerminal } from '../core/terminal.js';
-import { getTerminal } from '../core/terminal.js'; // alias to your export
+import { clearTerminal, getTerminal } from '../core/terminal.js';
 
 /* ------------------------------------------------------------------ */
-/* 1) SHIM: make sure both 'stackframe' and 'error-stack-parser'
-      exist (globals + AMD), and that BOTH .parse and .default.parse
-      are callable. Doing it here guarantees it’s ready before any
-      error handling runs during Python execution.                     */
+/* 1) Ensure error-stack-parser & stackframe are safe for AMD users    */
+/*    - If AMD modules exist, patch them in place (add .default.parse) */
+/*    - Else, define them. Also set window globals either way.         */
 /* ------------------------------------------------------------------ */
-function ensureErrorParsersShim() {
-  if (window.__esp_shim_done__) return;
-  window.__esp_shim_done__ = true;
+function ensureErrorParsers() {
+  // helpers
+  const makeStackFrame = (obj) => {
+    const SF = obj || function StackFrame(props){ if (props) for (const k in props) this[k] = props[k]; };
+    SF.default = SF;                // guarantee ESM-like shape
+    return SF;
+  };
+  const makeESP = (obj) => {
+    let ESP = obj || {};
+    if (typeof ESP.parse !== 'function') {
+      ESP.parse = function(){ return []; }; // safe noop
+    }
+    ESP.default = ESP;             // guarantee ESM-like shape
+    return ESP;
+  };
 
-  // Global objects (or stubs)
-  var SF = window.StackFrame || function StackFrame(props){ if (props) for (var k in props) this[k]=props[k]; };
-  SF.default = SF;
-  window.StackFrame = SF;
+  // always put globals in a good state
+  window.StackFrame = makeStackFrame(window.StackFrame);
+  window.ErrorStackParser = makeESP(window.ErrorStackParser);
 
-  var ESP = window.ErrorStackParser || {};
-  if (typeof ESP.parse !== 'function') {
-    ESP.parse = function(){ return []; };
+  const req = (typeof window.require === 'function') ? window.require : null;
+  const def = (typeof window.define === 'function' && window.define.amd) ? window.define : null;
+
+  // If AMD has the module already, patch the actual cached object
+  if (req && typeof req === 'function' && req.defined) {
+    try {
+      if (req.defined('stackframe')) {
+        req(['stackframe'], (mod) => {
+          try {
+            // mutate object in-place so all holders see the change
+            const good = makeStackFrame(mod && (mod.default || mod));
+            mod.default = good.default; // ensure .default exists
+            // some builds export the function itself; that's fine
+          } catch {}
+        });
+      }
+      if (req.defined('error-stack-parser')) {
+        req(['error-stack-parser'], (mod) => {
+          try {
+            const target = (mod && (mod.default || mod));
+            const good = makeESP(target);
+            // mutate existing object
+            mod.parse = good.parse;
+            mod.default = good;    // now mod.default.parse is a function
+          } catch {}
+        });
+      }
+    } catch {} // ignore if this flavour of require doesn't expose .defined
   }
-  ESP.default = ESP;
-  window.ErrorStackParser = ESP;
 
-  // AMD modules for the loader (if present)
-  if (typeof define === 'function' && define.amd) {
-    try { define('stackframe', [], function(){ return window.StackFrame; }); } catch {}
-    try { define('error-stack-parser', ['stackframe'], function(){ return window.ErrorStackParser; }); } catch {}
+  // If AMD is present and modules are NOT defined, define them
+  if (def) {
+    try { def('stackframe', [], () => window.StackFrame); } catch {}
+    try { def('error-stack-parser', ['stackframe'], () => window.ErrorStackParser); } catch {}
   }
 }
 
@@ -45,20 +77,23 @@ export function getLastOutput(){ return lastOut; }
 function loadScript(src){
   return new Promise((res, rej) => {
     const s = document.createElement('script');
-    s.src = src; s.async = true; s.crossOrigin = 'anonymous';
-    s.onload = res; s.onerror = () => rej(new Error('Failed to load '+src));
+    s.src = src;
+    s.async = true;
+    s.crossOrigin = 'anonymous';
+    s.onload = res;
+    s.onerror = () => rej(new Error('Failed to load '+src));
     document.head.appendChild(s);
   });
 }
 
 async function ensurePyodide(){
   if (ready) return ready;
-  // Current stable; adjust if you prefer to pin another
+  // Stable as of now; pin if you like
   await loadScript('https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.js');
   ready = window.loadPyodide();
   pyodide = await ready;
 
-  // Bridge stdout/stderr → xterm
+  // Bridge stdout/stderr to xterm
   const term = getTerminal();
   window.__term_write = (text) => {
     const s = String(text ?? '');
@@ -101,8 +136,8 @@ export function activate(){
 
 export async function run(){
   try{
-    // Make sure the shim is in place BEFORE any error can bubble
-    ensureErrorParsersShim();
+    // Make sure parsers are safe BEFORE any error overlay tries to parse
+    ensureErrorParsers();
 
     await ensurePyodide();
     clearTerminal(true);
@@ -111,12 +146,11 @@ export async function run(){
     const code = getValue();
     setStatus('Running Python…');
 
-    // Use Async to avoid blocking UI
     await pyodide.runPythonAsync(code);
 
     setStatus('Execution Success! (Exit Code - 0)', 'ok');
   }catch(err){
-    // Never rethrow — keep errors local so no global overlay runs
+    // Keep errors local; show in terminal; don't rethrow
     const term = getTerminal();
     const msg = (err && err.message) ? err.message : String(err);
     term?.write(('\r\n' + msg + '\r\n').replace(/\n/g, '\r\n'));
@@ -126,6 +160,5 @@ export async function run(){
 }
 
 export function stop(){
-  // No hard kill in main thread; next run starts clean after reset
   setStatus('Stopped.', 'err');
 }
