@@ -2,7 +2,7 @@
 import { setLanguage, setValue, getValue } from '../core/editor.js';
 import { setStatus } from '../core/ui.js';
 import { clearTerminal } from '../core/terminal.js';
-import { getTerm as getTerminal } from '../core/terminal.js'; // alias to your export
+import { getTerminal } from '../core/terminal.js'; // alias to your export
 
 /* ------------------------------------------------------------------ */
 /* 1) SHIM: make sure both 'stackframe' and 'error-stack-parser'
