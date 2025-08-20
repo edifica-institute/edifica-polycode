@@ -70,6 +70,9 @@ export function activate(){
   setTimeout(layoutEditors, 0);
 }
 
+
+
+
 export function run(){
   const preview = document.getElementById('preview');
   if (!preview){ setStatus('Preview iframe missing','err'); return; }
@@ -80,18 +83,28 @@ export function run(){
 
   setStatus('Rendering…');
 
-  // Build sandboxed document (fresh every run)
-  preview.srcdoc =
-    `<!DOCTYPE html><html><head><meta charset="utf-8">
-       <meta name="viewport" content="width=device-width,initial-scale=1">
-       <style>${css}</style>
-     </head><body>${html}
-       <script>${(js || '').replace(/<\/script>/gi, '<\\/script>')}<\/script>
-     </body></html>`;
+  // hard refresh: blank first
+  preview.removeAttribute('src');
+  preview.srcdoc = '<!doctype html><html><head><meta charset="utf-8"></head><body></body></html>';
 
-  lastOutput = 'Rendered HTML + CSS + JS (preview on the right).';
+  // then write the real page
+  const page = `<!DOCTYPE html><html><head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <style>${css}</style>
+  </head><body>${html}
+    <script>${(js || '').replace(/<\/script>/gi, '<\\/script>')}<\/script>
+  </body></html>`;
+
+  // next microtask ensures reflow before new content (optional, but helps)
+  setTimeout(() => { preview.srcdoc = page; }, 0);
+
   setStatus('Rendered','ok');
+  setStatus("Execution Success! (Exit Code - 0)","ok");
 }
+
+
+
+
 
 export function stop(){
   const preview = document.getElementById('preview');
