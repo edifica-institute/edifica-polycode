@@ -11,24 +11,43 @@ import {
 import * as javaLang from './lang/java.js';
 import * as sqlLang  from './lang/sql.js';
 import * as webLang  from './lang/web.js';
-import * as pythonLang from './lang/python.js';
-import * as pythonRemote from './lang/python_remote.js';
+// NOTE: we will load Python runners dynamically to avoid 404/MIME issues.
+// import * as pythonLang from './lang/python.js';
+// import * as pythonRemote from './lang/python_remote.js';
 
 /* ============================================================================
    SELECT YOUR PYTHON BACKEND HERE
-   true  -> use remote sandbox (Piston)   [recommended for stability]
-   false -> use in-browser Pyodide       [no network, larger load, packages later]
+   false -> use in-browser Pyodide  (./lang/python.js)  [default, stable]
+   true  -> use remote sandbox      (./lang/python_remote.js)
 ============================================================================ */
-const USE_REMOTE_PYTHON = true;
-const py = USE_REMOTE_PYTHON ? pythonRemote : pythonLang;
+const USE_REMOTE_PYTHON = false;
+
+// Cache for the chosen Python module once loaded
+let pyMod = null;
+
+async function loadPythonModule() {
+  if (pyMod) return pyMod;
+  if (USE_REMOTE_PYTHON) {
+    // Try remote; surface a nice status if missing
+    try {
+      pyMod = await import('./lang/python_remote.js');
+    } catch (e) {
+      setStatus('Python remote runner not found. Using Pyodide instead.', 'err');
+      pyMod = await import('./lang/python.js');
+    }
+  } else {
+    pyMod = await import('./lang/python.js');
+  }
+  return pyMod;
+}
 
 /* ============================================================================
    Safety hot-patch for ErrorStackParser "default.parse" shape
    Prevents crashes like: G.default.parse is not a function
+   (Guarded: runs only if RequireJS is available; also normalizes global)
 ============================================================================ */
 (function normalizeESP() {
   try {
-    // If Monaco AMD loader is present, normalize the AMD module
     if (typeof window.require === 'function') {
       window.require(['error-stack-parser'], function (ESP) {
         try {
@@ -39,7 +58,6 @@ const py = USE_REMOTE_PYTHON ? pythonRemote : pythonLang;
         } catch {}
       }, function(){});
     }
-    // Also normalize any global already on window
     const G = window.ErrorStackParser;
     if (G && typeof G.parse === 'function') {
       if (!G.default || !G.default.parse) G.default = G;
@@ -182,7 +200,7 @@ async function switchLang(lang){
   const hint = document.getElementById('hint');
 
   if (lang === 'python') {
-    // Activate selected Python runner (remote or pyodide)
+    const py = await loadPythonModule();
     py.activate();
     if (hint) hint.textContent = USE_REMOTE_PYTHON
       ? 'Running on remote sandbox. Optional one-shot stdin will be prompted.'
@@ -250,7 +268,8 @@ async function run() {
   if (current === 'python') {
     document.getElementById('term')?.classList.remove('hidden');
     showRightPane('term');
-    return py.run(); // use selected python backend
+    const py = await loadPythonModule();
+    return py.run();
   }
 
   if (current === 'web')  return webLang.run();
@@ -263,7 +282,7 @@ async function run() {
   return javaLang.runJava();
 }
 
-function stop() {
+async function stop() {
   // Always clear the visible terminal area silently
   clearTerminal();
 
@@ -272,9 +291,9 @@ function stop() {
   if (current === 'sql')  return sqlLang.stop();
 
   if (current === 'python') {
-    return py.stop(); // use selected python backend
+    const py = await loadPythonModule();
+    return py.stop();
   }
-
   // Java
   document.getElementById('term')?.classList.add('hidden');
   return javaLang.stopJava();
@@ -304,7 +323,7 @@ async function sendToWhatsApp() {
     } else if (lang === 'WEB') {
       outputText = '(HTML+CSS+JS preview omitted)';
     } else if (lang === 'PYTHON') {
-      // use the selected python backend's last output
+      const py = await loadPythonModule();
       outputText = (py.getLastOutput?.() || '').trim();
     }
 
