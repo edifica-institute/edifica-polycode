@@ -58,13 +58,7 @@ function ensureErrorParsers() {
     } catch {} // ignore if this flavour of require doesn't expose .defined
   }
 
-   // If AMD is present and modules are NOT defined, define them (guarded).
-  // We avoid colliding with our esp-amd-shim mapping.
-  if (def && req && typeof req.defined === 'function') {
-    try { if (!req.defined('stackframe')) def('stackframe', [], () => window.StackFrame); } catch {}
-    try { if (!req.defined('error-stack-parser')) def('error-stack-parser', ['stackframe'], () => window.ErrorStackParser); } catch {}
-  }
-
+  
 
 /* ------------------------------------------------------------------ */
 /* 2) Pyodide loader                                                   */
