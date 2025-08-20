@@ -134,7 +134,7 @@ export function activate(){
   setStatus('Ready.');
 }
 
-export async function run(){
+/*export async function run(){
   try{
     // Make sure parsers are safe BEFORE any error overlay tries to parse
     ensureErrorParsers();
@@ -157,6 +157,29 @@ export async function run(){
     appendOut('\n' + msg + '\n');
     setStatus('Python error', 'err');
   }
+}*/
+
+
+
+
+
+
+export async function run(){
+
+    // Make sure parsers are safe BEFORE any error overlay tries to parse
+    ensureErrorParsers();
+
+    await ensurePyodide();
+    clearTerminal(true);
+    lastOut = '';
+
+    const code = getValue();
+    setStatus('Running Python…');
+
+    await pyodide.runPythonAsync(code);
+
+    setStatus('Execution Success! (Exit Code - 0)', 'ok');
+ 
 }
 
 export function stop(){
