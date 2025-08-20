@@ -81,13 +81,26 @@
 
 
 
- <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
+<!-- 1) Configure Monaco path BEFORE loading loader.js -->
+<script>
+  // Tell AMD where Monaco lives
+  var require = {
+    paths: {
+      vs: "https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs"
+    }
+  };
+</script>
 
-<!-- Our shim: AFTER loader.js, BEFORE any code that might indirectly import pyodide -->
+<!-- 2) Monaco AMD loader (load ONCE) -->
+<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
+
+<!-- 3) Our AMD shim for error-stack-parser / stackframe -->
 <script src="./js/shims/esp-amd-shim.js"></script>
 
-<!-- xterm, your app scripts, etc. -->
+<!-- 4) Xterm (Terminal is needed by your terminal.js) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
 <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+
 
 
 
