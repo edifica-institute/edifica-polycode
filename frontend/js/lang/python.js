@@ -22,7 +22,8 @@ function loadScript(src){
 async function ensurePyodide(){
   if (ready) return ready;
   // Load Pyodide from CDN
-  await loadScript('https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js');
+  await loadScript('https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.js');
+
   ready = window.loadPyodide();
   pyodide = await ready;
 
