@@ -22,21 +22,20 @@ import * as webLang  from './lang/web.js';
 ============================================================================ */
 const USE_REMOTE_PYTHON = true;
 
+const PY_BACKEND = 'server';
+
 // Cache for the chosen Python module once loaded
 let pyMod = null;
 
 async function loadPythonModule() {
   if (pyMod) return pyMod;
-  if (USE_REMOTE_PYTHON) {
-    // Try remote; surface a nice status if missing
-    try {
-      pyMod = await import('./lang/python-remote.js');
-    } catch (e) {
-      setStatus('Python remote runner not found. Using Pyodide instead.', 'err');
-      pyMod = await import('./lang/python.js');
-    }
+  if (PY_BACKEND === 'server') {
+    pyMod = await import('./lang/python-server.js');
+  } else if (PY_BACKEND === 'remote') {
+    // if you keep the remote file with a hyphen:
+    pyMod = await import('./lang/python-remote.js');
   } else {
-    pyMod = await import('./lang/python.js');
+    pyMod = await import('./lang/python.js'); // Pyodide
   }
   return pyMod;
 }
