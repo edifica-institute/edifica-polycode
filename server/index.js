@@ -113,18 +113,16 @@ app.post("/api/java/prepare", async (req, res, next) => {
 
 
 // ---- websocket run ----
-const server = app.listen(8080, () => console.log("Server on :8080"));
-//const attachPythonWS = require('./server/python-ws'); // adjust path if needed
+const PORT = process.env.PORT || 8080;
+const server = app.listen(PORT, () => console.log("Server on :", PORT));
+
+// Attach Python WS at /python  (ESM import at top:  import attachPythonWS from './server/python-ws.js')
 attachPythonWS(server);
 
-const wss = new WebSocketServer({ noServer: true });
-server.on("upgrade", (req, socket, head) => {
-  const url = new URL(req.url, "http://localhost");
-  if (url.pathname === "/term") {
-    wss.handleUpgrade(req, socket, head, (ws) => wss.emit("connection", ws, req));
-  } //else socket.destroy();
-});
-wss.on("connection", (ws, req) => {
+// Java terminal WS — use path-based handling (no manual server.on('upgrade'))
+const javaWSS = new WebSocketServer({ server, path: '/term' });
+
+javaWSS.on("connection", (ws, req) => {
   const url = new URL(req.url, "http://localhost");
   const token = url.searchParams.get("token");
   const sess = SESSIONS.get(token);
@@ -132,9 +130,7 @@ wss.on("connection", (ws, req) => {
   const { jobDir, mainClass } = sess;
 
   let term;
-
   if (USE_DOCKER) {
-    // ===== Docker run (existing) =====
     const args = [
       "run","--rm","-i","--network","none",
       "--cpus","1.0","--memory","512m","--pids-limit","256",
@@ -143,18 +139,11 @@ wss.on("connection", (ws, req) => {
     ];
     term = spawn("docker", args, { name: "xterm-color", cols: 80, rows: 24 });
   } else {
-    // ===== Local run (no Docker) =====
-    // Light resource guards: 5s CPU, ~512MB RAM, run from jobDir
     const JAVA_OPTS = process.env.JAVA_TOOL_OPTIONS
-  || "-Xms32m -Xmx128m -XX:MaxMetaspaceSize=64m -XX:+UseSerialGC -Xss512k";
-
-const runCmd = `ulimit -t 5; cd "${jobDir}"; java ${JAVA_OPTS} ${mainClass}`;
+      || "-Xms32m -Xmx128m -XX:MaxMetaspaceSize=64m -XX:+UseSerialGC -Xss512k";
+    const runCmd = `ulimit -t 5; cd "${jobDir}"; java ${JAVA_OPTS} ${mainClass}`;
     term = spawn("bash", ["-lc", runCmd], {
-      name: "xterm-color",
-      cols: 80,
-      rows: 24,
-      cwd: jobDir,
-      env: process.env
+      name: "xterm-color", cols: 80, rows: 24, cwd: jobDir, env: process.env
     });
   }
 
@@ -174,11 +163,4 @@ const runCmd = `ulimit -t 5; cd "${jobDir}"; java ${JAVA_OPTS} ${mainClass}`;
     } catch {}
   });
   ws.on("close", () => { try { term.kill(); } catch {} });
-});
-
-
-// ---- error handler ----
-app.use((err, req, res, next) => {
-  console.error(err);
-  res.status(500).json({ error: String(err.message || err) });
 });
