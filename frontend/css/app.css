@@ -197,3 +197,38 @@ select{ background:#0b1220; color:#e5e7eb; border:1px solid #334155; padding:8px
   .webgrid > div{ height: 42vh; }
 }
 
+
+
+
+:root{
+  --outw: 560px;              /* default width of output column */
+  --handle: 6px;              /* splitter thickness             */
+  --panelH: 76vh;             /* unified panel height           */
+}
+
+/* 2-column layout: editor | splitter | output */
+.wrap{
+  display:grid;
+  grid-template-columns: 1fr var(--handle) var(--outw);
+  gap:12px;
+  padding:12px;
+}
+
+/* every panel has the same height and hides overflow */
+.panel{
+  height: var(--panelH);
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+}
+
+/* console / preview / sql output areas share the same inner height */
+#term, #preview, #sqlout{
+  height: calc(var(--panelH) - 46px); /* 46px = status bar */
+}
+
+/* hide xterm’s vertical scrollbar (optional) */
+#term .xterm-viewport{ scrollbar-width: none; }
+#term .xterm-viewport::-webkit-scrollbar{ display:none; }
+
+
