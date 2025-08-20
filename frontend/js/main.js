@@ -12,8 +12,40 @@ import * as javaLang from './lang/java.js';
 import * as sqlLang  from './lang/sql.js';
 import * as webLang  from './lang/web.js';
 import * as pythonLang from './lang/python.js';
+import * as pythonRemote from './lang/python_remote.js';
 
+/* ============================================================================
+   SELECT YOUR PYTHON BACKEND HERE
+   true  -> use remote sandbox (Piston)   [recommended for stability]
+   false -> use in-browser Pyodide       [no network, larger load, packages later]
+============================================================================ */
+const USE_REMOTE_PYTHON = true;
+const py = USE_REMOTE_PYTHON ? pythonRemote : pythonLang;
 
+/* ============================================================================
+   Safety hot-patch for ErrorStackParser "default.parse" shape
+   Prevents crashes like: G.default.parse is not a function
+============================================================================ */
+(function normalizeESP() {
+  try {
+    // If Monaco AMD loader is present, normalize the AMD module
+    if (typeof window.require === 'function') {
+      window.require(['error-stack-parser'], function (ESP) {
+        try {
+          if (ESP && !ESP.default) ESP.default = ESP;
+          if (ESP && typeof ESP.parse === 'function' && ESP.default && !ESP.default.parse) {
+            ESP.default.parse = ESP.parse;
+          }
+        } catch {}
+      }, function(){});
+    }
+    // Also normalize any global already on window
+    const G = window.ErrorStackParser;
+    if (G && typeof G.parse === 'function') {
+      if (!G.default || !G.default.parse) G.default = G;
+    }
+  } catch {}
+})();
 
 // ---------------------------------------------------------------------------
 // VISIBILITY HELPERS
@@ -29,12 +61,11 @@ function showRightPane(id) {                 // id: 'term' | 'preview' | 'sqlout
 // Flip the left-side stacks (single editor vs 3-pane web editors)
 // and set a sensible right-side pane for the language.
 function setLanguageUI(lang) {
-  const isWeb = (lang === 'web');
+  const isWeb  = (lang === 'web');
   const isHtml = (lang === 'html');
-  const isSql = (lang === 'sql');
-const isPy   = (lang === 'python');
+  const isSql  = (lang === 'sql');
+  const isPy   = (lang === 'python');
 
-  
   const leftCode = document.getElementById('left-code'); // single editor
   const leftHtml = document.getElementById('left-html'); // 3-pane (html/css/js)
 
@@ -48,12 +79,9 @@ const isPy   = (lang === 'python');
     showRightPane('preview');
   } else if (isSql) {
     showRightPane('sqlout');
-    
-  } 
-  else if (isPy)  { showRightPane('term');  
-                  }
-  
-  else {
+  } else if (isPy)  {
+    showRightPane('term');
+  } else {
     showRightPane('term'); // Java & others
   }
 }
@@ -62,7 +90,7 @@ const isPy   = (lang === 'python');
 // SILENT CLEAR HELPERS
 // ---------------------------------------------------------------------------
 function clearByLanguage(full = false) {
-  if (current === 'java' || current=== 'python') {
+  if (current === 'java' || current === 'python') {
     clearTerminal(full);               // xterm (silent)
   } else if (current === 'html' || current === 'web') {
     clearPreview();                    // iframe (silent)
@@ -153,13 +181,16 @@ async function switchLang(lang){
 
   const hint = document.getElementById('hint');
 
- if (lang === 'python') {
-    pythonLang.activate();
-    if (hint) hint.textContent = 'Use print() / input(). Output appears in the console.';
+  if (lang === 'python') {
+    // Activate selected Python runner (remote or pyodide)
+    py.activate();
+    if (hint) hint.textContent = USE_REMOTE_PYTHON
+      ? 'Running on remote sandbox. Optional one-shot stdin will be prompted.'
+      : 'Use print() / input(). Output appears in the console.';
     setStatus('Ready.');
     return;
   }
-  
+
   if (lang === 'web') {
     // HTML+CSS+JS 3-pane
     webLang.activate();
@@ -216,13 +247,12 @@ async function run() {
   clearByLanguage(false);
   resetEditClearArming();
 
-
-   if (current === 'python') {
+  if (current === 'python') {
     document.getElementById('term')?.classList.remove('hidden');
     showRightPane('term');
-    return pythonLang.run();
+    return py.run(); // use selected python backend
   }
-  
+
   if (current === 'web')  return webLang.run();
   if (current === 'html') { if (!htmlMod) htmlMod = await loadHtmlModule(); return htmlMod.run(); }
   if (current === 'sql')  return sqlLang.run();
@@ -240,9 +270,11 @@ function stop() {
   if (current === 'web')  return webLang.stop();
   if (current === 'html') { try { htmlMod?.stop?.(); } catch {} return; }
   if (current === 'sql')  return sqlLang.stop();
-if (current === 'python') {
-    return pythonLang.stop();
+
+  if (current === 'python') {
+    return py.stop(); // use selected python backend
   }
+
   // Java
   document.getElementById('term')?.classList.add('hidden');
   return javaLang.stopJava();
@@ -271,10 +303,11 @@ async function sendToWhatsApp() {
       outputText = '(HTML preview omitted)';
     } else if (lang === 'WEB') {
       outputText = '(HTML+CSS+JS preview omitted)';
+    } else if (lang === 'PYTHON') {
+      // use the selected python backend's last output
+      outputText = (py.getLastOutput?.() || '').trim();
     }
-else if (lang === 'PYTHON') {
-  outputText = (pythonLang.getLastOutput?.() || '').trim();
-}
+
     // Student identity (remembered once)
     const key = 'polycode_student';
     let student = localStorage.getItem(key) || '';
