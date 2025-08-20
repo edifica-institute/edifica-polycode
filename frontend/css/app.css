@@ -283,3 +283,73 @@ select{ background:#0b1220; color:#e5e7eb; border:1px solid #334155; padding:8px
   height:100%;
   border:0;
 }
+
+
+/* --- Workspace layout --- */
+#workspace {
+  display: grid;
+  grid-template-columns: 1fr 40%;
+  gap: 12px;
+  height: calc(100vh - 80px); /* adjust to your header height */
+  min-height: 480px;
+  overflow: hidden;
+}
+
+/* Left side: 3 editor panes + 2 gutters */
+#panes {
+  display: grid;
+  grid-template-columns: 1fr 6px 1fr 6px 1fr; /* pane | gutter | pane | gutter | pane */
+  gap: 0;
+  min-width: 0;   /* CRITICAL: allows grid children to shrink properly */
+  min-height: 0;
+  overflow: hidden;
+}
+.pane {
+  min-width: 0;   /* CRITICAL for editors (Monaco/CodeMirror) */
+  min-height: 0;
+  overflow: hidden;
+  background: #0b1220;
+  border-radius: 12px;
+  outline: 1px solid rgba(255,255,255,.06);
+}
+.gutter {
+  background: #1f2937;
+  cursor: col-resize;
+}
+
+/* Output area */
+#outputWrapper {
+  position: relative;
+  min-width: 320px;
+  min-height: 0;
+  overflow: hidden;
+  background: #0b1220;
+  border-radius: 12px;
+  outline: 1px solid rgba(255,255,255,.06);
+}
+
+/* Two separate output surfaces: iframe (for HTML) & pre (for other langs) */
+#outFrame, #outText {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: none;
+}
+#outText {
+  padding: 12px;
+  overflow: auto;
+  white-space: pre-wrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+/* Draggable handle for the output column */
+#outputResizer {
+  position: absolute;
+  top: 0;
+  right: -6px;
+  width: 12px;
+  height: 100%;
+  cursor: ew-resize;
+}
