@@ -1,4 +1,3 @@
-
 // frontend/js/main.js
 
 import { initMonaco, setLanguage, setValue, clearMarkers /*, setMarkers*/ } from './core/editor.js';
@@ -14,7 +13,7 @@ import * as sqlLang  from './lang/sql.js';
 import * as webLang  from './lang/web.js';
 
 // ---------------------------------------------------------------------------
-// VISIBILITY + CLEAR HELPERS
+// VISIBILITY HELPERS
 // ---------------------------------------------------------------------------
 function showRightPane(id) {                 // id: 'term' | 'preview' | 'sqlout'
   ['term','preview','sqlout'].forEach(x => {
@@ -24,17 +23,45 @@ function showRightPane(id) {                 // id: 'term' | 'preview' | 'sqlout
   });
 }
 
-function clearByLanguage(full = false) {
-  if (current === 'java') {
-    clearTerminal(full);                     // xterm
-  } else if (current === 'html' || current === 'web') {
-    clearPreview('Output cleared.');         // iframe
-  } else if (current === 'sql') {
-    clearSqlOutput('Output cleared.');       // table area
+// Flip the left-side stacks (single editor vs 3-pane web editors)
+// and set a sensible right-side pane for the language.
+function setLanguageUI(lang) {
+  const isWeb = (lang === 'web');
+  const isHtml = (lang === 'html');
+  const isSql = (lang === 'sql');
+
+  const leftCode = document.getElementById('left-code'); // single editor
+  const leftHtml = document.getElementById('left-html'); // 3-pane (html/css/js)
+
+  if (leftCode && leftHtml) {
+    // HTML+CSS+JS uses left-html; everything else uses left-code
+    leftHtml.style.display = (isWeb ? 'block' : 'none');
+    leftCode.style.display = (isWeb ? 'none'  : 'block');
+  }
+
+  if (isWeb || isHtml) {
+    showRightPane('preview');
+  } else if (isSql) {
+    showRightPane('sqlout');
+  } else {
+    showRightPane('term'); // Java & others
   }
 }
 
-// one-shot auto-clear after first edit (debounced)
+// ---------------------------------------------------------------------------
+// SILENT CLEAR HELPERS
+// ---------------------------------------------------------------------------
+function clearByLanguage(full = false) {
+  if (current === 'java') {
+    clearTerminal(full);               // xterm (silent)
+  } else if (current === 'html' || current === 'web') {
+    clearPreview();                    // iframe (silent)
+  } else if (current === 'sql') {
+    clearSqlOutput();                  // table area (silent)
+  }
+}
+
+// one-shot auto-clear after the first edit post run/switch (debounced)
 let autoClearTimer = null;
 let clearedAfterEdit = false;
 
@@ -42,10 +69,9 @@ function scheduleAutoClear() {
   if (clearedAfterEdit) return;
   clearTimeout(autoClearTimer);
   autoClearTimer = setTimeout(() => {
-    clearByLanguage(false);
-    clearedAfterEdit = true;
-    setStatus('Output cleared (code changed).');
-  }, 700);
+    clearByLanguage(false);            // no status text
+    clearedAfterEdit = true;           // arm once until reset
+  }, 300);
 }
 function resetEditClearArming() { clearedAfterEdit = false; }
 
@@ -189,11 +215,15 @@ window.addEventListener('DOMContentLoaded', async () => {
   // Keyboard shortcut from editor
   window.addEventListener('polycode:run', run);
 
-  // Language switcher
-  const sel = document.getElementById('langSel');
-  if (sel) sel.addEventListener('change', () => switchLang(sel.value));
+  // Language switcher (NOTE: uses #language-select per updated HTML)
+  const sel = document.getElementById('language-select');
+  if (sel) {
+    // initialize UI to current selected
+    setLanguageUI(sel.value);
+    sel.addEventListener('change', () => switchLang(sel.value));
+  }
 
-  // Auto-clear on first edit after init (and after we re-arm it on run/switch)
+  // Auto-clear on first edit after init (and after we re-arm on run/switch)
   if (window.monaco?.editor?.onDidCreateEditor) {
     monaco.editor.onDidCreateEditor((ed) => {
       ed.onDidChangeModelContent(() => scheduleAutoClear());
@@ -202,54 +232,62 @@ window.addEventListener('DOMContentLoaded', async () => {
 });
 
 // ---------------------------------------------------------------------------
+// LANGUAGE SWITCHING
+// ---------------------------------------------------------------------------
 async function switchLang(lang){
   current = lang;
 
-  const hint = document.getElementById('hint');
-
-  // Clear outputs on language switch and re-arm auto-clear
+  // Clear outputs on language switch and re-arm one-shot edit clear
   clearByLanguage(true);
   resetEditClearArming();
 
+  // Flip left panes + right output pane
+  setLanguageUI(lang);
+
+  const hint = document.getElementById('hint');
+
   if (lang === 'web') {
-    showRightPane('preview');              // Web uses the preview iframe
+    // HTML+CSS+JS 3-pane
     webLang.activate();
     if (hint) hint.textContent = 'Edit HTML, CSS & JS. Click Run to render on the right.';
+    // Clear any stale preview DOM when entering web
+    clearPreview();
     setStatus('Ready.');
     return;
   }
 
   if (lang === 'html'){
-    showRightPane('preview');              // HTML uses the preview iframe
     try{
       if (!htmlMod) htmlMod = await loadHtmlModule();
       htmlMod.activate();
       if (hint) hint.textContent = 'HTML preview is shown on the right.';
     }catch(e){
       console.error('Failed to load html module:', e);
-      // fallback editor + preview
+      // fallback: switch editor mode + simple preview message
       setLanguage('html');
       setValue('<!doctype html><html><body><h2>Hello, HTML!</h2></body></html>');
-      const preview = document.getElementById('preview');
-      if (preview){
-        preview.srcdoc = '<!doctype html><html><body style="font-family:system-ui;background:#0b1220;color:#e5e7eb;margin:20px">HTML module failed to load. A fallback preview is shown.</body></html>';
+      const iframe = document.getElementById('preview');
+      if (iframe){
+        iframe.srcdoc = '<!doctype html><html><body style="font-family:system-ui;background:#0b1220;color:#e5e7eb;margin:20px">HTML module failed to load. A fallback preview is shown.</body></html>';
       }
       if (hint) hint.textContent = 'HTML preview is shown on the right.';
     }
+    // Clear any stale preview DOM when entering html
+    clearPreview();
     setStatus('Ready.');
     return;
   }
 
   if (lang === 'sql'){
-    showRightPane('sqlout');               // SQL uses the table div
     sqlLang.activate();
     if (hint) hint.textContent = 'Write SQL on the left. Results appear as a table.';
+    // Clear any stale sql output when entering sql
+    clearSqlOutput();
     setStatus('Ready.');
     return;
   }
 
   // Default: Java (keep terminal hidden until Run)
-  showRightPane('term');                    // term pane is the active output
   javaLang.activate();
   if (hint) hint.textContent = 'Type into the console when your program asks for input (e.g., Scanner).';
   setStatus('Ready.');
@@ -269,12 +307,13 @@ async function run() {
 
   // Java
   document.getElementById('term')?.classList.remove('hidden');
-  showRightPane('term');                    // ensure the terminal is the visible pane
+  showRightPane('term');                    // ensure the terminal is visible
   return javaLang.runJava();
 }
 
 function stop() {
-  clearTerminal();                          // always clear visible terminal if any
+  // Always clear the visible terminal area silently
+  clearTerminal();
 
   if (current === 'web')  return webLang.stop();
   if (current === 'html') { try { htmlMod?.stop?.(); } catch {} return; }
@@ -292,10 +331,10 @@ async function sendToWhatsApp() {
   try {
     setStatus('Preparing submission…');
 
-    const sel  = document.getElementById('langSel');
-    const lang = (sel?.value || 'java').toUpperCase();
+    const sel  = document.getElementById('language-select');
+    const lang = (sel?.value || current || 'java').toUpperCase();
 
-    // Code text from editor
+    // Code text from editor (main model; adapt if you later use multiple models)
     const codeText = monaco.editor.getModels()[0].getValue();
 
     // Output text per language
@@ -343,16 +382,6 @@ Image: ${imageUrl}
     alert('Upload failed. Please try again, or paste the links manually.');
   }
 }
-
-
-
-
-
-
-
-
-
-
 
 
 
