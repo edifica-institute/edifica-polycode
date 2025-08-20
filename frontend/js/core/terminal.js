@@ -12,8 +12,11 @@ let inputDisposable = null;
  */
 export function initTerminal() {
   if (term) return term;
+   if (!window.Terminal) {
+    throw new Error('xterm not loaded (Terminal is undefined). Make sure xterm.min.js is included before main.js');
+  }
 
-  term = new Terminal({
+  term = new window.Terminal({
     convertEol: true,
     cursorBlink: true,
     cursorStyle: 'bar',
