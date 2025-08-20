@@ -4,96 +4,109 @@ import { setStatus } from '../core/ui.js';
 import { clearTerminal, getTerminal } from '../core/terminal.js';
 
 const SAMPLE = `# Python (remote)
-# Enter multiple inputs in the popup as separate lines.
-# Example program expecting three lines of input:
-a = input()
-b = input()
-c = input()
-print("You typed:", a, b, c)
+# Type inputs in the input box below the console (one line per input()).
+print('Hello World')
+x = int(input('enter'))   # line 1
+y = int(input('enter'))   # line 2
+z = int(input('enter'))   # line 3
+print(x, y, z)
 `;
 
 let lastOut = '';
 export function getLastOutput(){ return lastOut; }
 
-/* -------------------------- stdin modal (one-time) ------------------------- */
-let stdinModalEl = null;
-function ensureStdinModal() {
-  if (stdinModalEl) return stdinModalEl;
+/* ------------------------------- stdin dock ------------------------------- */
+const LS_KEY = 'polycode_python_stdin';
+let dock; // root element
 
-  const wrap = document.createElement('div');
-  wrap.id = 'stdinModal';
-  wrap.style.cssText = `
-    position: fixed; inset: 0; display: none; z-index: 10000;
-    align-items: center; justify-content: center;
-    background: rgba(0,0,0,0.45);
-    font-family: system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif;
-  `;
-
-  const panel = document.createElement('div');
-  panel.style.cssText = `
-    width: min(680px, 92vw); max-height: 85vh; overflow: hidden;
-    background: #0b1220; color: #e5e7eb; border-radius: 12px;
-    box-shadow: 0 10px 30px rgba(0,0,0,.35); border: 1px solid rgba(255,255,255,.08);
-  `;
-
-  panel.innerHTML = `
-    <div style="padding:14px 16px; border-bottom:1px solid rgba(255,255,255,.06); display:flex; align-items:center; gap:10px;">
-      <div style="font-weight:600;">Program stdin</div>
-      <div style="margin-left:auto; opacity:.75; font-size:12px;">Each line =&gt; one <code>input()</code></div>
-    </div>
-    <div style="padding:12px;">
-      <textarea id="stdinArea" spellcheck="false"
-        style="width:100%; height: 220px; resize: vertical; background:#0f172a; color:#e5e7eb; border:1px solid rgba(255,255,255,.08); border-radius:8px; padding:10px; outline:none;"></textarea>
-      <div style="display:flex; align-items:center; gap:10px; margin-top:10px;">
-        <label style="font-size:13px; display:flex; align-items:center; gap:6px;">
-          <input id="stdinRemember" type="checkbox" />
-          Remember for next run
-        </label>
-        <div style="margin-left:auto; display:flex; gap:8px;">
-          <button id="stdinCancel" style="padding:8px 12px; border-radius:8px; background:#1f2937; color:#e5e7eb; border:1px solid rgba(255,255,255,.08);">Cancel</button>
-          <button id="stdinRun" style="padding:8px 12px; border-radius:8px; background:#2563eb; color:white; border:0;">Run</button>
-        </div>
-      </div>
-    </div>
-  `;
-
-  wrap.appendChild(panel);
-  document.body.appendChild(wrap);
-
-  stdinModalEl = wrap;
-  return wrap;
+function setSurfacesBottom(px) {
+  ['term','preview','sqlout'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.bottom = px + 'px';
+  });
 }
 
-function collectStdin() {
-  return new Promise((resolve, reject) => {
-    const el = ensureStdinModal();
-    const area = el.querySelector('#stdinArea');
-    const remember = el.querySelector('#stdinRemember');
-    const btnRun = el.querySelector('#stdinRun');
-    const btnCancel = el.querySelector('#stdinCancel');
+function ensureDock() {
+  if (dock && document.body.contains(dock)) return dock;
 
-    // preload remembered stdin
-    const key = 'polycode_python_stdin';
-    const saved = localStorage.getItem(key) || '';
-    area.value = saved;
-    remember.checked = !!saved;
+  const ow = document.getElementById('outputWrapper');
+  if (!ow) return null;
 
-    const close = () => { el.style.display = 'none'; };
-    const run = () => {
-      const val = area.value || '';
-      if (remember.checked) localStorage.setItem(key, val);
-      else localStorage.removeItem(key);
-      close();
-      resolve(val);
-    };
+  dock = document.createElement('div');
+  dock.id = 'stdinDock';
+  dock.style.cssText = `
+    position: absolute; left:0; right:0; bottom:0;
+    background:#0b1220; border-top:1px solid rgba(255,255,255,.08);
+    z-index: 5; color:#e5e7eb; font-family:system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  `;
+  dock.innerHTML = `
+    <div style="display:flex; align-items:center; gap:10px; padding:6px 10px;">
+      <strong style="font-size:12px; letter-spacing:.2px; opacity:.85">input</strong>
+      <span style="font-size:12px; opacity:.6">Each line =&gt; one <code>input()</code></span>
+      <span style="margin-left:auto; display:flex; gap:8px;">
+        <label style="font-size:12px; display:inline-flex; align-items:center; gap:6px; opacity:.85;">
+          <input id="stdinRemember" type="checkbox"> remember
+        </label>
+        <button id="stdinClear" style="font-size:12px; padding:4px 8px; border-radius:6px; background:#1f2937; color:#e5e7eb; border:1px solid rgba(255,255,255,.08);">Clear</button>
+      </span>
+    </div>
+    <div style="padding:0 10px 8px 10px;">
+      <textarea id="stdinBox" spellcheck="false"
+        placeholder="Type inputs here, one per line…"
+        style="width:100%; height:110px; resize:vertical; min-height:60px; max-height:40vh;
+               background:#0f172a; color:#e5e7eb; border:1px solid rgba(255,255,255,.08);
+               border-radius:8px; padding:8px; outline:none;"></textarea>
+    </div>
+  `;
+  ow.appendChild(dock);
 
-    btnRun.onclick = run;
-    btnCancel.onclick = () => { close(); reject(new Error('cancelled')); };
-    el.onclick = (e) => { if (e.target === el) { close(); reject(new Error('cancelled')); } };
+  const box = dock.querySelector('#stdinBox');
+  const rem = dock.querySelector('#stdinRemember');
+  const clr = dock.querySelector('#stdinClear');
 
-    el.style.display = 'flex';
-    area.focus();
+  // preload remembered value
+  const saved = localStorage.getItem(LS_KEY) || '';
+  box.value = saved;
+  rem.checked = !!saved;
+
+  rem.addEventListener('change', () => {
+    if (rem.checked) localStorage.setItem(LS_KEY, box.value);
+    else localStorage.removeItem(LS_KEY);
   });
+  box.addEventListener('input', () => {
+    if (rem.checked) localStorage.setItem(LS_KEY, box.value);
+  });
+  clr.addEventListener('click', () => {
+    box.value = '';
+    if (rem.checked) localStorage.setItem(LS_KEY, '');
+  });
+
+  // push terminal/preview up to make room
+  setSurfacesBottom(dock.offsetHeight);
+
+  // also adjust on manual resize of the textarea
+  let ro;
+  try {
+    ro = new ResizeObserver(() => setSurfacesBottom(dock.offsetHeight));
+    ro.observe(box);
+  } catch { /* ResizeObserver not supported */ }
+
+  return dock;
+}
+
+function showDock(show) {
+  const d = ensureDock();
+  if (!d) return;
+  d.style.display = show ? 'block' : 'none';
+  setSurfacesBottom(show ? d.offsetHeight : 0);
+}
+
+function readStdin() {
+  const d = ensureDock();
+  const box = d?.querySelector('#stdinBox');
+  if (!box) return '';
+  // normalize CRLF -> LF
+  return (box.value || '').replace(/\r\n/g, '\n');
 }
 
 /* ------------------------------- language API ------------------------------ */
@@ -101,6 +114,11 @@ export function activate(){
   setLanguage('python');
   setValue(SAMPLE);
   setStatus('Ready.');
+  showDock(true);
+}
+
+export function deactivate(){
+  showDock(false);
 }
 
 export async function run(){
@@ -109,14 +127,12 @@ export async function run(){
   lastOut = '';
 
   try {
-    // Ask for multi-line stdin up-front (one blob for the whole run)
-    const stdin = await collectStdin();
-
+    const stdin = readStdin();
     setStatus('Running on remote sandbox…');
 
     const code = getValue();
 
-    // Piston execute API (no auth required)
+    // Piston execute API
     const resp = await fetch('https://emkc.org/api/v2/piston/execute', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -148,10 +164,6 @@ export async function run(){
 
     setStatus(`Execution finished (exit ${exit})`, exit === 0 ? 'ok' : 'err');
   } catch (err) {
-    if (String(err?.message || err) === 'cancelled') {
-      setStatus('Run cancelled.', 'err');
-      return;
-    }
     const msg = (err && err.message) ? err.message : String(err);
     term?.write(('\r\n' + msg + '\r\n').replace(/\n/g, '\r\n'));
     lastOut += '\n' + msg + '\n';
