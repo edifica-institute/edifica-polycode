@@ -1,43 +1,11 @@
-:root { --bg:#0f172a; --card:#111827; --text:#e5e7eb; --muted:#9ca3af; --accent:#22c55e; --danger:#ef4444; }
-* { box-sizing: border-box; }
-body { margin:0; background:var(--bg); color:var(--text); font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial; }
-header { padding:14px 18px; border-bottom:1px solid #1f2937; display:flex; gap:12px; align-items:center; }
-header h1 { margin:0; font-size:18px; font-weight:600; }
-.badge { font-size:12px; padding:2px 8px; border-radius:999px; border:1px solid #334155; color:var(--muted); }
-.wrap { display:grid; grid-template-columns: 1fr 420px; gap:12px; padding:12px; }
-.panel { background:var(--card); border:1px solid #1f2937; border-radius:10px; overflow:hidden; }
-.toolbar { display:flex; gap:8px; align-items:center; padding:10px; border-bottom:1px solid #1f2937; }
-.toolbar .spacer { flex:1; }
-button { background:#1f2937; color:var(--text); border:1px solid #374151; padding:8px 12px; border-radius:8px; cursor:pointer; }
-button:hover { border-color:#4b5563; }
-button.primary { background:#10b98122; border-color:#10b98166; }
-button.danger { background:#ef444422; border-color:#ef444455; }
-#editor { height: 72vh; }
-#term { height: calc(72vh - 42px); padding:8px; }
-#preview { height: calc(72vh - 42px); width:100%; border:0; background:#0b1220; }
-
-.status { padding:8px 10px; font-size:13px; border-bottom:1px solid #1f2937; display:flex; gap:10px; align-items:center; }
-.status.ok { color:var(--accent); }
-.status.err { color:var(--danger); }
-.small { color:var(--muted); font-size:12px; }
-.note { padding:8px 10px; border-top:1px solid #1f2937; color:#cbd5e1; font-size:12px; }
-@media (max-width: 980px){ .wrap{ grid-template-columns: 1fr; } #editor{ height:50vh; } #term{ height:40vh; } }
-
-
-button.send{
-  background:linear-gradient(135deg,#06b6d4 0%, #10b981 50%, #22c55e 100%);
-  border:none; color:#fff; box-shadow:0 6px 18px rgba(16,185,129,.35)
-}
-
-
-
+/* ===== PolyCode — minimal, conflict-free layout ===== */
 
 :root{
   --bg:#0f172a; --card:#111827; --text:#e5e7eb; --muted:#9ca3af; --accent:#22c55e; --danger:#ef4444;
-  --outw: 520px;         /* right panel width (drag to resize) */
-  --handle: 6px;         /* splitter thickness */
-  --panelH: 74vh;        /* editor + output target height */
+  --handle: 8px;          /* splitter thickness */
+  --rightw: 560px;        /* default width of output column */
 }
+
 *{ box-sizing:border-box }
 body{ margin:0; background:var(--bg); color:var(--text); font-family: ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial }
 
@@ -48,10 +16,36 @@ header{ padding:12px 14px; border-bottom:1px solid #1f2937; display:flex; align-
 .title .tagline{ font-size:12px; color:#9ca3af; margin-top:-2px }
 .badge{ margin-left:auto; font-size:12px; padding:2px 8px; border-radius:999px; border:1px solid #334155; color:var(--muted) }
 
-.wrap{ display:grid; grid-template-columns: 1fr var(--handle) var(--outw); gap:12px; padding:12px }
-#splitter{ cursor:col-resize; background:#243244; border-radius:8px; opacity:.7 }
+.wrap{
+  display:grid;
+  grid-template-columns: 1fr var(--handle) var(--rightw); /* left | splitter | right */
+  gap:12px;
+  padding:12px;
+  height: calc(100vh - 90px);  /* fill viewport under header */
+  min-height: 480px;
+}
 
-.panel{ background:var(--card); border:1px solid #1f2937; border-radius:10px; overflow:hidden }
+/* Splitter */
+#splitter{
+  grid-column:2;
+  grid-row:1;
+  cursor: col-resize;
+  background:#243244;
+  border-radius:8px;
+  opacity:.85;
+  touch-action: none;
+}
+
+/* Panels */
+.panel{
+  background:var(--card);
+  border:1px solid #1f2937;
+  border-radius:10px;
+  display:flex;
+  flex-direction:column;
+  min-height:0;
+  overflow:hidden;
+}
 .toolbar{ display:flex; gap:8px; align-items:center; padding:10px; border-bottom:1px solid #1f2937 }
 .toolbar .spacer{ flex:1 }
 button{ background:#1f2937; color:var(--text); border:1px solid #374151; padding:8px 12px; border-radius:8px; cursor:pointer }
@@ -60,332 +54,27 @@ button.primary{ background:#10b98122; border-color:#10b98166 }
 button.danger{  background:#ef444422; border-color:#ef444455 }
 select{ background:#0b1220; color:#e5e7eb; border:1px solid #334155; padding:8px 12px; border-radius:8px }
 
-#editor{ height: var(--panelH) }
-
-/* Output (match editor height: status + term/preview == editor) */
 .status{ padding:8px 10px; font-size:13px; border-bottom:1px solid #1f2937; display:flex; align-items:center; gap:10px }
 .status.ok{ color:var(--accent) } .status.err{ color:var(--danger) }
-#term{ height: calc(var(--panelH) - 42px); padding:8px }
-#preview{ height: calc(var(--panelH) - 42px); width:100%; border:0; background:#0b1220 }
-
 .small{ color:var(--muted); font-size:12px }
 .note{ padding:8px 10px; border-top:1px solid #1f2937; color:#cbd5e1; font-size:12px }
 
-/* Spinner (animator) */
-.spinner .dot{ width:6px; height:6px; border-radius:999px; background:#22c55e; display:inline-block; margin-left:6px; animation:blip .9s infinite ease-in-out }
-.spinner .dot:nth-child(2){ animation-delay:.15s } .spinner .dot:nth-child(3){ animation-delay:.3s }
-@keyframes blip{ 0%,80%,100%{ transform:scale(0.6); opacity:.4 } 40%{ transform:scale(1); opacity:1 } }
+/* ===== LEFT SIDE ===== */
 
-@media (max-width: 980px){
-  .wrap{ grid-template-columns: 1fr }
-  #splitter{ display:none }
-  #editor{ height: 50vh }
-  #term, #preview{ height: 40vh }
-}
-
-:root{
-  --outw: 520px;        /* right panel width */
-  --handle: 6px;        /* splitter thickness */
-  --panelH: 74vh;       /* panel height */
-}
-
-.wrap{
-  display:grid;
-  grid-template-columns: 1fr var(--handle) var(--outw);
-  gap:12px; padding:12px;
-}
-
-/* Ensure splitter is in the middle column and easy to grab */
-#splitter{
-  grid-column: 2;               /* ← important */
-  cursor: col-resize;
-  background:#243244;
-  border-radius:8px;
-  opacity:.7;
-  height: var(--panelH);        /* bigger hit area */
-}
-
-
-:root{
-  --outw: 560px;    /* right pane width */
-  --handle: 8px;    /* splitter thickness */
-  --panelH: 86vh;   /* editor/output height */
-}
-
-.wrap{
-  display:grid;
-  grid-template-columns: 1fr var(--handle) var(--outw);
-  gap:12px; padding:12px;
-  align-items: stretch;
-}
-
-#splitter{
-  grid-column:2;
-  grid-row:1;
-  height: var(--panelH);
-  cursor: col-resize;
-  background:#243244;
-  border-radius:8px;
-  opacity:.85;
-  position: relative;
-  z-index: 10;
-  touch-action: none; /* enables pointer drag on touch */
-}
-
-#editor  { height: var(--panelH) }
-#term    { height: calc(var(--panelH) - 42px); padding:8px }
-#preview { height: calc(var(--panelH) - 42px); width:100%; border:0; background:#0b1220 }
-
-#term    { height: calc(var(--panelH) - 42px); padding:8px; }
-#preview { height: calc(var(--panelH) - 42px); width:100%; border:0; background:#0b1220 }
-
-#term.hidden { display: none; }
-
-/* frontend/css/app.css */
-#term .xterm-screen, #term .xterm-helpers { cursor: default !important; }
-/* Hide xterm's scroll bar but keep scrolling with the wheel/keys */
-#term .xterm-viewport{
-  scrollbar-width: none;         /* Firefox */
-  -ms-overflow-style: none;      /* IE/Edge legacy */
-}
-#term .xterm-viewport::-webkit-scrollbar{ /* Chrome/Safari */
-  width: 0 !important;
-  height: 0 !important;
-  background: transparent !important;
-}
-
-/* SQL output styling */
-#sqlout{
-  height: calc(var(--panelH) - 42px);
-  overflow: auto;
-  padding: 10px;
-  background: #0b1220;
-}
-#sqlout table{
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-}
-#sqlout th, #sqlout td{
-  border: 1px solid #334155;
-  padding: 6px 8px;
-  text-align: left;
-}
-#sqlout th{
-  background: #0f172a;
-  color: #e5e7eb;
-}
-
-
-/* Three Monaco panes for Web mode */
-.webgrid{
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 8px;
-  padding: 10px;
-}
-.webgrid > div{
-  height: calc(var(--panelH) - 84px); /* adjust if your layout differs */
-  border: 1px solid #1f2937;
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-/* On narrow screens, stack editors */
-@media (max-width: 980px){
-  .webgrid{ grid-template-columns: 1fr; }
-  .webgrid > div{ height: 42vh; }
-}
-
-
-
-
-:root{
-  --outw: 560px;              /* default width of output column */
-  --handle: 6px;              /* splitter thickness             */
-  --panelH: 76vh;             /* unified panel height           */
-}
-
-/* 2-column layout: editor | splitter | output */
-.wrap{
-  display:grid;
-  grid-template-columns: 1fr var(--handle) var(--outw);
-  gap:12px;
-  padding:12px;
-}
-
-/* every panel has the same height and hides overflow */
-.panel{
-  height: var(--panelH);
-  display:flex;
-  flex-direction:column;
-  overflow:hidden;
-}
-
-/* console / preview / sql output areas share the same inner height */
-#term, #preview, #sqlout{
-  height: calc(var(--panelH) - 46px); /* 46px = status bar */
-}
-
-/* hide xterm’s vertical scrollbar (optional) */
-#term .xterm-viewport{ scrollbar-width: none; }
-#term .xterm-viewport::-webkit-scrollbar{ display:none; }
-
-
-/* Fill viewport: header height ~ 64–90px; adjust if yours differs */
-.wrap{
-  display:grid;
-  grid-template-columns: 1fr 8px 1fr; /* left | splitter | right */
-  height: calc(100vh - 90px);
-  min-height: 480px;
-}
-
-/* Each side is a vertical stack */
-.panel{
-  display:flex;
-  flex-direction:column;
-  min-height:0;     /* allow children to shrink */
-  overflow:hidden;
-}
-
-/* Single Monaco editor (Java/SQL) must be allowed to grow */
-#editor{
-  flex:1 1 auto;
-  min-height:0;
-}
-
-/* 3-pane editors for Web */
-#left-html{
-  display:grid;
-  grid-template-rows: 1fr 1fr 1fr;
-  gap:8px;
-  min-height:0;  /* critical: avoid collapsing when container shrinks */
-}
-
-/* Each Monaco div inside the grid must be allowed to fill */
-#left-html > #htmlEd,
-#left-html > #cssEd,
-#left-html > #jsEd{
-  min-height:0;
-}
-
-/* Right side outputs should fill */
-#term,
-#sqlout,
-#preview{
-  flex:1 1 auto;
-  min-height:0;
-}
-
-/* Optional: make iframe always occupy full panel area */
-#preview{
-  width:100%;
-  height:100%;
-  border:0;
-}
-
-
-/* --- Workspace layout --- */
-#workspace {
-  display: grid;
-  grid-template-columns: 1fr 40%;
-  gap: 12px;
-  height: calc(100vh - 80px); /* adjust to your header height */
-  min-height: 480px;
-  overflow: hidden;
-}
-
-/* Left side: 3 editor panes + 2 gutters */
-#panes {
-  display: grid;
-  grid-template-columns: 1fr 6px 1fr 6px 1fr; /* pane | gutter | pane | gutter | pane */
-  gap: 0;
-  min-width: 0;   /* CRITICAL: allows grid children to shrink properly */
-  min-height: 0;
-  overflow: hidden;
-}
-.pane {
-  min-width: 0;   /* CRITICAL for editors (Monaco/CodeMirror) */
-  min-height: 0;
-  overflow: hidden;
-  background: #0b1220;
-  border-radius: 12px;
-  outline: 1px solid rgba(255,255,255,.06);
-}
-.gutter {
-  background: #1f2937;
-  cursor: col-resize;
-}
-
-/* Output area */
-#outputWrapper {
-  position: relative;
-  min-width: 320px;
-  min-height: 0;
-  overflow: hidden;
-  background: #0b1220;
-  border-radius: 12px;
-  outline: 1px solid rgba(255,255,255,.06);
-}
-
-/* Two separate output surfaces: iframe (for HTML) & pre (for other langs) */
-#outFrame, #outText {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  border: 0;
-  display: none;
-}
-#outText {
-  padding: 12px;
-  overflow: auto;
-  white-space: pre-wrap;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-}
-
-/* Draggable handle for the output column */
-#outputResizer {
-  position: absolute;
-  top: 0;
-  right: -6px;
-  width: 12px;
-  height: 100%;
-  cursor: ew-resize;
-}
-
-
-
-
-
-/* left/right container sizing */
-.wrap{
-  display:grid;
-  grid-template-columns: 1fr 8px 1fr;    /* left | splitter | right */
-  height: calc(100vh - 90px);
-  min-height: 480px;
-}
-.panel{
-  display:flex;
-  flex-direction:column;
-  min-height:0;
-  overflow:hidden;
-}
-
-/* SINGLE editor (Java/SQL/etc.) */
+/* Single-editor mode (Java/SQL/etc.) */
 #left-code{
-  display:flex;              /* one stack, not columns */
+  display:flex;             /* column stack */
   flex:1 1 auto;
   min-height:0;
 }
 #left-code > #editor{
   flex:1 1 auto;
-  min-height:0;
+  min-height:0;             /* Monaco needs this */
 }
 
-/* THREE editors (Web mode only) */
+/* Web mode: three editors stacked vertically */
 #left-html{
-  display:none;              /* hidden by default; JS toggles this */
+  display:none;             /* JS shows this only in Web mode */
   grid-template-rows: 1fr 1fr 1fr;
   gap:8px;
   min-height:0;
@@ -393,12 +82,37 @@ select{ background:#0b1220; color:#e5e7eb; border:1px solid #334155; padding:8px
 #left-html > #htmlEd,
 #left-html > #cssEd,
 #left-html > #jsEd{
-  min-height:0;
+  min-height:0;             /* Monaco needs this */
+  border:1px solid #1f2937;
+  border-radius:8px;
+  overflow:hidden;
 }
 
-/* right outputs fill */
+/* ===== RIGHT SIDE ===== */
 #term, #sqlout, #preview{
   flex:1 1 auto;
   min-height:0;
 }
-#preview{ width:100%; height:100%; border:0; }
+
+#term.hidden{ display:none; }
+#term .xterm-screen, #term .xterm-helpers{ cursor: default !important; }
+/* hide xterm scrollbars but keep scrolling */
+#term .xterm-viewport{ scrollbar-width: none; -ms-overflow-style: none; }
+#term .xterm-viewport::-webkit-scrollbar{ width:0; height:0; background:transparent }
+
+#sqlout{
+  overflow:auto;
+  padding:10px;
+  background:#0b1220;
+}
+#sqlout table{ width:100%; border-collapse:collapse; font-size:13px }
+#sqlout th, #sqlout td{ border:1px solid #334155; padding:6px 8px; text-align:left }
+#sqlout th{ background:#0f172a; color:#e5e7eb }
+
+#preview{ width:100%; height:100%; border:0; background:#0b1220 }
+
+/* ===== Responsive ===== */
+@media (max-width: 980px){
+  .wrap{ grid-template-columns: 1fr; }
+  #splitter{ display:none; }
+}
