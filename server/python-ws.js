@@ -1,42 +1,49 @@
-// server/python-ws.js
-const { WebSocketServer } = require('ws');
-const pty = require('node-pty');
-const os = require('os');
-const path = require('path');
-const fs = require('fs-extra');
-const { v4: uuid } = require('uuid');
+// server/python-ws.js  (ESM)
+import { WebSocketServer } from 'ws';
+import pty from 'node-pty';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
 
-module.exports = function attachPythonWS(server) {
+export default function attachPythonWS(server) {
+  // WebSocket path will be wss://<host>/python
   const wss = new WebSocketServer({ server, path: '/python' });
 
   wss.on('connection', (ws) => {
-    let proc = null, tmpDir = null, killTimer = null;
+    let proc = null;
+    let workDir = null;
+    let killTimer = null;
 
-    const cleanup = () => {
+    const cleanup = async () => {
       if (killTimer) { clearTimeout(killTimer); killTimer = null; }
       try { proc?.kill(); } catch {}
       proc = null;
-      if (tmpDir) fs.remove(tmpDir).catch(()=>{});
-      tmpDir = null;
+      if (workDir) {
+        // remove temp folder (ignore errors)
+        rm(workDir, { recursive: true, force: true }).catch(() => {});
+        workDir = null;
+      }
     };
 
     ws.on('message', async (raw) => {
-      let msg; try { msg = JSON.parse(raw.toString()); } catch { return; }
+      let msg;
+      try { msg = JSON.parse(raw.toString()); } catch { return; }
 
       if (msg.type === 'run') {
-        cleanup();
-        try {
-          // Write code to a temp file
-          tmpDir = path.join(os.tmpdir(), 'py-' + uuid());
-          await fs.ensureDir(tmpDir);
-          const file = path.join(tmpDir, 'main.py');
-          await fs.writeFile(file, String(msg.code ?? ''), 'utf8');
+        await cleanup();
 
-          // -u = unbuffered so prints show immediately (interactive)
+        try {
+          // Create a fresh temp dir and write main.py
+          workDir = await mkdtemp(join(tmpdir(), `py-${randomUUID()}-`));
+          const file = join(workDir, 'main.py');
+          await writeFile(file, String(msg.code ?? ''), 'utf8');
+
+          // -u (unbuffered) so prints show immediately
           proc = pty.spawn('python3', ['-u', file], {
             name: 'xterm-color',
             cols: 120, rows: 30,
-            cwd: tmpDir,
+            cwd: workDir,
             env: process.env,
           });
 
@@ -51,12 +58,13 @@ module.exports = function attachPythonWS(server) {
             cleanup();
           });
 
-          // safety timeout (adjust as you like)
+          // safety timeout (tune)
           killTimer = setTimeout(() => { try { proc.kill(); } catch {} }, 15000);
+
         } catch (e) {
           ws.send(JSON.stringify({ type: 'stderr', data: 'Spawn error: ' + (e?.message || e) }));
           ws.send(JSON.stringify({ type: 'exit', code: 1 }));
-          cleanup();
+          await cleanup();
         }
         return;
       }
@@ -67,12 +75,12 @@ module.exports = function attachPythonWS(server) {
       }
 
       if (msg.type === 'stop') {
-        cleanup();
+        await cleanup();
         ws.send(JSON.stringify({ type: 'exit', code: 130 }));
       }
     });
 
-    ws.on('close', cleanup);
-    ws.on('error', cleanup);
+    ws.on('close', () => { cleanup(); });
+    ws.on('error', () => { cleanup(); });
   });
-};
+}
