@@ -1,6 +1,10 @@
+// server/index.js  (ESM)
+
 import express from "express";
 import { WebSocketServer } from "ws";
-import { spawn } from "node-pty";
+import pty from "node-pty";               // ✅ ESM-friendly import
+const { spawn } = pty;
+
 import { nanoid } from "nanoid";
 import fs from "fs/promises";
 import fssync from "fs";
@@ -9,13 +13,12 @@ import os from "os";
 import multer from "multer";
 import cors from "cors";
 import { spawn as cpSpawn } from "child_process";
-import attachPythonWS from './python-ws.js';
-
+import attachPythonWS from "./python-ws.js";   // ✅ file is beside index.js in /server
 
 const USE_DOCKER = process.env.SANDBOX !== "local"; // "local" on Render
 
-const app = express();                         // <-- create app first
-app.use(cors());                               // <-- then use CORS
+const app = express();
+app.use(cors());
 app.use(express.json({ limit: "2mb" }));
 
 const upload = multer({ storage: multer.memoryStorage() });
@@ -25,7 +28,7 @@ if (!fssync.existsSync(JOB_ROOT)) fssync.mkdirSync(JOB_ROOT, { recursive: true }
 
 const SESSIONS = new Map();
 
-// ---- helpers ----
+// ---------------- helpers ----------------
 const javacRegex = /^(.+?):(\d+):(?:(\d+):)?\s+(error|warning):\s+(.*)$/gm;
 function parseJavac(stderr) {
   const out = []; let m;
@@ -50,7 +53,7 @@ function execCapture(cmd, args) {
   });
 }
 
-// ---- routes ----
+// --------------- routes ------------------
 app.post("/api/java/prepare", async (req, res, next) => {
   try {
     const { files = [], mainClass = "Main" } = req.body || {};
@@ -58,12 +61,10 @@ app.post("/api/java/prepare", async (req, res, next) => {
       return res.status(400).json({ error: "No files provided" });
     }
 
-    // Create a workspace folder for this job
     const jobId = nanoid();
     const jobDir = path.join(JOB_ROOT, jobId);
     await fs.mkdir(jobDir, { recursive: true });
 
-    // Write uploaded files
     await Promise.all(
       files.map(async f => {
         const p = path.normalize(f.path);
@@ -79,7 +80,6 @@ app.post("/api/java/prepare", async (req, res, next) => {
     let ok = false;
 
     if (USE_DOCKER) {
-      // ===== Docker path (what you already had) =====
       const compileCmd = [
         "run","--rm","--network","none",
         "--cpus","1.0","--memory","512m","--pids-limit","256",
@@ -92,10 +92,9 @@ app.post("/api/java/prepare", async (req, res, next) => {
       diagnostics = parseJavac(compileLog);
       ok = diagnostics.every(d => d.severity !== "error");
     } else {
-      // ===== Local path (no Docker; for Render free tier) =====
-      // Compile directly in the container where Node is running
-      const script = `cd "${jobDir}"; shopt -s nullglob; files=( *.java ); ` +
-                     `if (( \${#files[@]} )); then javac -Xlint:all -Xdiags:verbose "\${files[@]}" 2>&1; else echo "No .java files"; fi; true`;
+      const script =
+        `cd "${jobDir}"; shopt -s nullglob; files=( *.java ); ` +
+        `if (( \${#files[@]} )); then javac -Xlint:all -Xdiags:verbose "\${files[@]}" 2>&1; else echo "No .java files"; fi; true`;
       const out = await execCapture("bash", ["-lc", script]);
       compileLog = out.stdout;
       diagnostics = parseJavac(compileLog);
@@ -111,16 +110,17 @@ app.post("/api/java/prepare", async (req, res, next) => {
   }
 });
 
+// --------------- websockets --------------
+const PORT = Number(process.env.PORT) || 8080;     // ✅ listen on Render’s PORT
+const server = app.listen(PORT, () => {
+  console.log("Server on :", PORT);
+});
 
-// ---- websocket run ----
-const PORT = process.env.PORT || 8080;
-const server = app.listen(PORT, () => console.log("Server on :", PORT));
-
-// Attach Python WS at /python  (ESM import at top:  import attachPythonWS from './server/python-ws.js')
+// Python WS at /python
 attachPythonWS(server);
 
-// Java terminal WS — use path-based handling (no manual server.on('upgrade'))
-const javaWSS = new WebSocketServer({ server, path: '/term' });
+// Java WS at /term (no manual server.on('upgrade'))
+const javaWSS = new WebSocketServer({ server, path: "/term" });
 
 javaWSS.on("connection", (ws, req) => {
   const url = new URL(req.url, "http://localhost");
@@ -163,4 +163,10 @@ javaWSS.on("connection", (ws, req) => {
     } catch {}
   });
   ws.on("close", () => { try { term.kill(); } catch {} });
+});
+
+// --------------- errors ------------------
+app.use((err, req, res, next) => {
+  console.error(err);
+  res.status(500).json({ error: String(err.message || err) });
 });
