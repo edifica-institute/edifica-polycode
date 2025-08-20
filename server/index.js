@@ -9,6 +9,8 @@ import os from "os";
 import multer from "multer";
 import cors from "cors";
 import { spawn as cpSpawn } from "child_process";
+import attachPythonWS from './server/python-ws.js';  // <-- add this
+
 
 const USE_DOCKER = process.env.SANDBOX !== "local"; // "local" on Render
 
