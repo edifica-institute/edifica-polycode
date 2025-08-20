@@ -43,13 +43,16 @@ export async function run(){
   setStatus("Rendering HTML…","ok");
   showSpinner(true);
 
-  const code = getValue();
+ const code = getValue();
   const html = /<html[\s\S]*<\/html>/i.test(code)
     ? code
     : `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Preview</title></head><body>${code}</body></html>`;
 
-  // fresh doc each time
+  // force fresh doc
+  preview.removeAttribute('src');
   preview.srcdoc = html;
+  setTimeout(() => { preview.srcdoc = html; }, 0);
+
 
   setStatus("Execution Success! (Exit Code - 0)","ok");
   setTimeout(()=>showSpinner(false), 150);
