@@ -85,40 +85,6 @@
 <script src="https://cdn.jsdelivr.net/npm/stackframe@1.3.4/dist/stackframe.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/error-stack-parser@2.1.4/dist/error-stack-parser.min.js"></script>
 
-<!-- Define AMD shims so the Monaco AMD loader can resolve these modules -->
-<script>
-/* Ultra-robust shim for stackframe & error-stack-parser.
-   Guarantees BOTH shapes:
-   - require('…').parse
-   - require('…').default.parse
-   and also sets window globals in case something reads them directly.
-*/
-(function () {
-  // ---- Create globals (or stubs) -----------------------------------
-  var StackFrame = window.StackFrame || function StackFrame(props){ if (props) for (var k in props) this[k]=props[k]; };
-  StackFrame.default = StackFrame;  // ESM-like shape
-  window.StackFrame = StackFrame;
-
-  var ErrorStackParser = window.ErrorStackParser || { parse: function(){ return []; } };
-  if (typeof ErrorStackParser.parse !== 'function') {
-    ErrorStackParser.parse = function(){ return []; };
-  }
-  ErrorStackParser.default = ErrorStackParser; // ESM-like shape
-  window.ErrorStackParser = ErrorStackParser;
-
-  // ---- Register AMD modules returning the SAME objects ---------------
-  function whenAMD(cb){
-    if (typeof define === 'function' && define.amd) cb();
-    else setTimeout(function(){ whenAMD(cb); }, 0);
-  }
-
-  whenAMD(function(){
-    // Return the plain object/function (AMD consumers) …
-    try { define('stackframe', [], function(){ return window.StackFrame; }); } catch(e){}
-    try { define('error-stack-parser', ['stackframe'], function(){ return window.ErrorStackParser; }); } catch(e){}
-  });
-})();
-</script>
 
 
 
