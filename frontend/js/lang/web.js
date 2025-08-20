@@ -45,6 +45,13 @@ function ensureEditors(){
   inited = true;
 }
 
+export function layoutEditors(){
+  htmlEd?.layout();
+  cssEd?.layout();
+  jsEd?.layout();
+}
+
+
 export function activate(){
   // Ensure three editors exist (left-pane visibility is controlled by main.js)
   ensureEditors();
@@ -60,6 +67,7 @@ export function activate(){
   const hint = document.getElementById('hint');
   if (hint) hint.textContent = 'Edit HTML, CSS & JS. Click Run to render on the right.';
   setStatus('Ready.');
+  setTimeout(layoutEditors, 0);
 }
 
 export function run(){
