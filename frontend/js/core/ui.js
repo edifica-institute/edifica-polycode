@@ -366,14 +366,16 @@ export async function notifyTeacher({ imageUrl, codeUrl, student, lang }) {
 
 
 // frontend/js/core/ui.js
+// core/ui.js
 export function clearPreview() {
   const iframe = document.getElementById('preview');
   if (!iframe) return;
-  const doc = iframe.contentDocument || iframe.contentWindow.document;
-  doc.open();
-  doc.write('<!doctype html><html><head><meta charset="utf-8"></head><body></body></html>');
-  doc.close();
+  // Never touch contentWindow/contentDocument in a sandboxed iframe
+  // Just replace the doc via srcdoc (works even when cross-origin sandbox).
+  iframe.removeAttribute('src');     // ensure srcdoc wins
+  iframe.srcdoc = '<!doctype html><html><head><meta charset="utf-8"></head><body></body></html>';
 }
+
 
 export function clearSqlOutput() {
   const el = document.getElementById('sqlout');
