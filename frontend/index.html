@@ -5,7 +5,13 @@
   <title>PolyCode</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
 
-  
+  <!-- xterm (CSS + JS) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
+  <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js" defer></script>
+
+  <!-- Monaco AMD loader -->
+  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js" defer></script>
+
   <!-- Your stylesheet (Step 1 CSS already added here) -->
   <link rel="stylesheet" href="./css/app.css" />
 </head>
@@ -29,10 +35,8 @@
         <span class="small">Language:</span>
         <select id="language-select">
           <option value="java" selected>Java</option>
-                    <option value="html">HTML + CSS + JS</option>
+          <option value="html">HTML + CSS + JS</option>
           <option value="sql">SQL (MySQL)</option>
-          <option value="python">Python</option>
-
         </select>
       </div>
 
@@ -71,34 +75,6 @@
     </section>
   </div>
 
-
-
-
-
-<!-- 1) Configure Monaco path BEFORE loading loader.js -->
-<script>
-  // Tell AMD where Monaco lives
-  var require = {
-    paths: {
-      vs: "https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs"
-    }
-  };
-</script>
-
-<!-- 2) Monaco AMD loader (load ONCE) -->
-<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
-
-<!-- 3) Our AMD shim for error-stack-parser / stackframe -->
-<script src="./js/shims/esp-amd-shim.js"></script>
-
-<!-- 4) Xterm (Terminal is needed by your terminal.js) -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
-<script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
-
-
-
-
-  
   <!-- ONE entry point only -->
   <script type="module" src="./js/main.js"></script>
 </body>
