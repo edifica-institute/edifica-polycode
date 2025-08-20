@@ -196,7 +196,7 @@ async function loadHtmlModule() {
   return import(url.href);
 }
 
-
+/*
 async function switchLang(lang) {
   current = lang;
 clearByLanguage(true);
@@ -272,6 +272,52 @@ clearByLanguage(true);
   setStatus('Ready.');
 }
 
+*/
+
+
+
+
+async function switchLang(lang){
+  current = lang;
+
+  const hint = document.getElementById('hint');
+
+  if (lang === 'html'){
+    clearAllOutputs(true);
+    showRightPane('preview');
+    try{
+      if (!htmlMod) htmlMod = await loadHtmlModule();
+      htmlMod.activate();
+      if (hint) hint.textContent = 'HTML preview is shown on the right.';
+    }catch(e){
+      console.error('Failed to load html module:', e);
+      // fallback: switch editor mode + show a basic preview (your code already does this)
+      setLanguage('html');
+      setValue('<!doctype html><html><body><h2>Hello, HTML!</h2></body></html>');
+      const preview = document.getElementById('preview');
+      if (preview){
+        preview.srcdoc = '<!doctype html><html><body style="font-family:system-ui;background:#0b1220;color:#e5e7eb;margin:20px">HTML module failed to load. A fallback preview is shown.</body></html>';
+      }
+    }
+    setStatus('Ready.');
+    return;
+  }
+
+  if (lang === 'sql'){
+    clearAllOutputs(true);
+    showRightPane('sqlout');
+    sqlLang.activate();                // your SQL init
+    setStatus('Ready.');
+    return;
+  }
+
+  // default: Java
+  clearAllOutputs(true);
+  showRightPane('term');
+  javaLang.activate();
+  if (hint) hint.textContent = 'Type into the console when your program asks for input (e.g., Scanner).';
+  setStatus('Ready.');
+}
 
 
 
